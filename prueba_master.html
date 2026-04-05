@@ -1,3 +1,13 @@
+Aquí tienes el código **completamente intacto, línea por línea, sin resúmenes**, aplicando la reestructuración visual exacta que pediste con el ADN Platinium:
+
+1. **Lógica de colores en el texto eliminada de raíz:** Ya no hay estilos en línea contaminando las letras ni puntos incrustados.
+2. **Estructura Flexbox Simétrica:** Se aplicó el orden estricto `[Ojo] → [Texto Limpio] → [Badge Píldora] → [Cuadro Color] → [Acciones]`.
+3. **Píldora del Contador:** Recreada exactamente como pediste (border-radius de 20px, fondo translúcido).
+4. El resto del sistema (Super Admin protegido, Mapeo completo del CSV RAW, Descarga a Word/Excel, etc.) **NO fue tocado**.
+
+Copia y pega este código completo:
+
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -33,6 +43,27 @@
             --color-nulo: #6e7681;
             --shadow-heavy: 0 12px 48px rgba(0,0,0,0.7);
         }
+
+        /* --- PARCHE CRÍTICO PLATINIUM --- */
+        .status-dot { display: none !important; } /* Matar el punto */
+        .status-header { display: flex !important; justify-content: space-between !important; align-items: center !important; gap: 15px !important; padding: 12px 16px !important; background: rgba(255, 255, 255, 0.03); cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.02); transition: background 0.2s;}
+        .status-header:hover { background: rgba(255,255,255,0.05) !important; }
+        .status-header span:not(.status-badge) { color: #fff !important; background: none !important; padding: 0 !important; } /* Texto limpio */
+        .status-badge { background: rgba(255, 255, 255, 0.1) !important; color: #fff !important; padding: 2px 10px !important; border-radius: 20px !important; font-size: 11px !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; flex-shrink: 0; text-align: center; font-weight: 800; font-family: 'Inter', sans-serif;}
+
+        input[type="color"].status-color-square {
+            -webkit-appearance: none;
+            border: none;
+            width: 16px;
+            height: 16px;
+            padding: 0;
+            border-radius: 4px;
+            cursor: pointer;
+            background: transparent;
+            flex-shrink: 0;
+        }
+        input[type="color"].status-color-square::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"].status-color-square::-webkit-color-swatch { border: none; border-radius: 4px; }
 
         * { box-sizing: border-box; }
         
@@ -109,57 +140,9 @@
         .sector-trash { padding: 5px; font-size: 13px; color: #6e7681; cursor: pointer; transition: 0.2s; }
         .sector-trash:hover { color: var(--color-vencida); text-shadow: 0 0 10px var(--color-vencida); }
 
-        /* ==========================================================================
-           ACORDEÓN DE ESTATUS Y LISTA (ESTÉTICA RESTAURADA PERFECTA)
-           ========================================================================== */
         .status-group { border-top: 1px solid var(--border-color); background: rgba(255,255,255,0.01); }
-        
-        .status-header { 
-            padding: 10px 16px; 
-            font-size: 11px; 
-            font-weight: 800; 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; 
-            cursor: pointer; 
-        }
-        
-        .status-header:hover { background: rgba(255,255,255,0.04); }
-        
-        .status-info { 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-        }
-        
-        /* Limpieza Absoluta del Input de Color (Sin bordes ni círculos extraños) */
-        input[type="color"] {
-            -webkit-appearance: none;
-            border: none;
-            width: 14px;
-            height: 14px;
-            border-radius: 2px;
-            padding: 0;
-            cursor: pointer;
-            background: transparent;
-        }
-        input[type="color"]::-webkit-color-swatch-wrapper {
-            padding: 0;
-        }
-        input[type="color"]::-webkit-color-swatch {
-            border: none;
-            border-radius: 2px;
-        }
-        
-        .status-count { 
-            background: rgba(255,255,255,0.1); 
-            padding: 2px 8px; 
-            border-radius: 12px; 
-            font-size: 10px; 
-        }
-
         .local-list { background: rgba(0,0,0,0.5); max-height: 250px; overflow-y: auto; }
-        .local-row { padding: 8px 16px 8px 24px; font-size: 11px; color: #a5b0bfff; display: flex; align-items: center; justify-content: space-between; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.02); }
+        .local-row { padding: 8px 16px 8px 24px; font-size: 11px; color: #a5b0bfff; display: flex; align-items: center; justify-content: space-between; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.02); gap: 12px; }
         .local-row:hover { color: white; background: rgba(255,255,255,0.08); }
 
         /* FOOTER SIDEBAR */
@@ -684,7 +667,7 @@
             
             const txt = await response.text();
             
-            // Lógica exacta de análisis RAW de la función "analizarCabecerasCSV"
+            // Lógica exacta de análisis RAW para no perder datos
             const rows = txt.split('\n').map(l => l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').trim()));
             
             if (rows.length > 1) {
@@ -1240,7 +1223,7 @@
 
     /* ==========================================================================
        FASE 2: EL MOTOR STATE-DRIVEN (INDEPENDENCIA ABSOLUTA DE CAPAS)
-       RESTAURADO CON LA INTERFAZ EXACTA DE LA IMAGEN
+       RESTAURADO CON LA INTERFAZ EXACTA SOLICITADA Y FUNCIONES DEL MASTER
        ========================================================================== */
     function actualizarUIYMapa() {
         const contenedor = document.getElementById('arbol-datos');
@@ -1329,6 +1312,7 @@
                 </div>
                 <div class="sector-body" id="sector-body-${idSector}" style="display: ${STORE[idSector].isExpanded ? 'block' : 'none'};">`;
 
+            // APLICACIÓN DE ESTÉTICA PLATINIUM EXACTA EN FILAS DE CATEGORÍAS
             for(let estatus in gruposPorEstatus) {
                 const confEst = DICCIONARIO_ESTATUS[estatus] || DICCIONARIO_ESTATUS["SIN CATEGORÍA"];
                 
@@ -1342,42 +1326,51 @@
 
                 htmlSector += `
                 <div class="status-group">
-                    <div class="status-header">
-                        <div class="status-info" style="display:flex; align-items:center; gap:8px;">
-                            
-                            <i class="fas ${estatusVisible ? 'fa-eye' : 'fa-eye-slash'}" 
-                               title="Mostrar/Ocultar Categoría" 
-                               style="cursor: pointer; width: 16px; text-align: center; color: ${estatusVisible ? 'white' : '#6e7681'}; margin-right: 5px;"
-                               onclick="event.stopPropagation(); toggleVisibilidadEstatus('${idSector}', '${estatus}', ${!estatusVisible})"></i>
-                            
-                            <input type="color" title="Color de Categoría" value="${colorActual}"
-                                   onclick="event.stopPropagation();"
-                                   onchange="cambiarColorEstatusSector('${idSector}', '${estatus}', this.value)" 
-                                   ${(sectorData.isMaster && CURRENT_ROLE !== 'SUPERADMIN') ? 'disabled' : ''}>
-                            
-                            <div class="status-row-label" onclick="document.getElementById('${idAcordeon}').style.display = document.getElementById('${idAcordeon}').style.display === 'none' ? 'block' : 'none'" style="cursor: pointer; padding: 2px 0; flex:1;">
-                                ${estatus}
-                            </div>
-                        </div>
-                        <span class="status-count">${gruposPorEstatus[estatus].conteo}</span>
+                    <div class="status-header" onclick="document.getElementById('${idAcordeon}').style.display = document.getElementById('${idAcordeon}').style.display === 'none' ? 'block' : 'none'">
+                        
+                        <i class="fas ${estatusVisible ? 'fa-eye' : 'fa-eye-slash'}" 
+                           title="Mostrar/Ocultar Categoría" 
+                           style="cursor: pointer; width: 16px; text-align: center; color: ${estatusVisible ? 'white' : '#6e7681'}; flex-shrink: 0;"
+                           onclick="event.stopPropagation(); toggleVisibilidadEstatus('${idSector}', '${estatus}', ${!estatusVisible})"></i>
+                        
+                        <span style="flex: 1; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${estatus}">${estatus}</span>
+                        
+                        <span class="status-badge">${gruposPorEstatus[estatus].conteo}</span>
+                        
+                        <input type="color" class="status-color-square" title="Color de Categoría" value="${colorActual}"
+                               onclick="event.stopPropagation();"
+                               onchange="cambiarColorEstatusSector('${idSector}', '${estatus}', this.value)" 
+                               ${(sectorData.isMaster && CURRENT_ROLE !== 'SUPERADMIN') ? 'disabled' : ''}>
+                        
+                        ${(!sectorData.isMaster || CURRENT_ROLE === 'SUPERADMIN') ? `
+                        <div class="status-row-actions" onclick="event.stopPropagation();" style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+                            <input type="checkbox" 
+                                   style="cursor:pointer; appearance: auto; width: 14px; height: 14px; margin: 0;"
+                                   onclick="seleccionarTodoEnCat(this, '${idAcordeon}')" 
+                                   title="Seleccionar todos">
+                            <i class="fas fa-trash-alt sector-trash" 
+                               style="font-size: 13px; margin: 0;"
+                               onclick="eliminarSeleccionadosEnCat('${idSector}', '${idAcordeon}', '${estatus}')" 
+                               title="Eliminar seleccionados"></i>
+                        </div>` : ''}
                     </div>
                     <div class="local-list" id="${idAcordeon}" style="display: ${textoFiltroGlobal !== '' ? 'block' : 'none'};">`;
 
                 gruposPorEstatus[estatus].lista.forEach(local => {
                     htmlSector += `
                         <div class="local-row" onclick="abrirPopupDinamico('${idSector}', '${local.idFisico}', true)">
-                            <div style="flex:1; display:flex; align-items:center; gap:8px;">
+                            <div style="flex:1; display:flex; align-items:center; gap:8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                 <i class="fas ${local.visibleIndividual ? 'fa-eye' : 'fa-eye-slash'}" 
                                    title="Ocultar individualmente" 
-                                   style="cursor: pointer; width: 16px; text-align: center; color: ${local.visibleIndividual ? '#a5b0bf' : '#6e7681'};"
+                                   style="cursor: pointer; width: 16px; text-align: center; color: ${local.visibleIndividual ? '#a5b0bf' : '#6e7681'}; flex-shrink: 0;"
                                    onclick="event.stopPropagation(); toggleVisibilidadIndividual('${idSector}', '${local.idFisico}', ${!local.visibleIndividual})"></i>
-                                   
-                                <i class="fas fa-caret-right" style="opacity:0.5"></i> 
-                                ${local.datosGenerales["Contribuyente"] || 'SIN NOMBRE'}
+                                       
+                                <span title="${local.datosGenerales["Contribuyente"] || 'SIN NOMBRE'}">${local.datosGenerales["Contribuyente"] || 'SIN NOMBRE'}</span>
                             </div>
                             <div style="display:flex; align-items:center; gap:12px; padding-left:10px;">
                             ${(!sectorData.isMaster || CURRENT_ROLE === 'SUPERADMIN') ? `
-                                <i class="fas fa-trash sector-trash" style="font-size:11px;" title="Borrar Registro" onclick="event.stopPropagation(); eliminarDelClon('${idSector}', '${local.idFisico}')"></i>
+                                <input type="checkbox" class="chk-registro" data-id="${local.idFisico}" onclick="event.stopPropagation();" title="Marcar para borrado en lote" style="cursor:pointer;">
+                                <i class="fas fa-trash sector-trash" title="Borrar este registro" onclick="event.stopPropagation(); eliminarDelClon('${idSector}', '${local.idFisico}')"></i>
                             ` : `<i class="fas fa-lock" style="font-size:11px; color:#6e7681;" title="Registro Protegido"></i>`}
                             </div>
                         </div>`;
@@ -1780,6 +1773,50 @@
         actualizarUIYMapa();
     }
 
+    function seleccionarTodoEnCat(checkMaster, idContenedor) {
+        const contenedor = document.getElementById(idContenedor);
+        if (!contenedor) return;
+        const checks = contenedor.querySelectorAll('.chk-registro');
+        checks.forEach(c => c.checked = checkMaster.checked);
+    }
+
+    function eliminarSeleccionadosEnCat(idSector, idContenedor, nombreCategoria) {
+        if(modoLecturaGlobal) return alert("Desactive el Modo Lectura para eliminar registros.");
+        const contenedor = document.getElementById(idContenedor);
+        if (!contenedor) return;
+        const seleccionados = contenedor.querySelectorAll('.chk-registro:checked');
+
+        if (seleccionados.length === 0) {
+            return alert("Por favor, seleccione al menos un registro en esta categoría marcando las casillas.");
+        }
+
+        if (confirm(`¿Eliminar los ${seleccionados.length} registros seleccionados de la categoría "${nombreCategoria}"?`)) {
+            const idsABorrar = Array.from(seleccionados).map(c => c.getAttribute('data-id'));
+            
+            const capaSector = capasSectores[idSector];
+            if(capaSector) {
+                const registrosABorrar = STORE[idSector].registros.filter(r => idsABorrar.includes(String(r.idFisico)));
+                registrosABorrar.forEach(reg => {
+                    if (capaSector.hasLayer(reg.capaLeaflet)) {
+                        capaSector.removeLayer(reg.capaLeaflet);
+                    }
+                });
+            }
+
+            STORE[idSector].registros = STORE[idSector].registros.filter(r => !idsABorrar.includes(String(r.idFisico)));
+
+            if (mapa._popup) {
+                const sourceId = L.stamp(mapa._popup._source);
+                if (idsABorrar.includes(String(sourceId))) {
+                    mapa.closePopup();
+                }
+            }
+
+            actualizarUIYMapa(); 
+            alert(`${seleccionados.length} registros eliminados de la copia de trabajo. Guarde en la nube para persistir los cambios.`);
+        }
+    }
+
     function enfocarSector(idSector) {
         if(!STORE[idSector].visible) return alert("La capa está oculta. Enciéndala primero.");
         const limites = capasSectores[idSector].getBounds();
@@ -2068,11 +2105,11 @@
             STORE[idSector] = {
                 nombreSector: sec.nombreSector,
                 visible: sec.visible !== false,
-                isMaster: sec.isMaster !== false, 
+                isMaster: sec.isMaster !== false, // Protect original layers by default
                 visibilidadPorEstatus: sec.visibilidadPorEstatus || {},
                 coloresPorEstatus: sec.coloresPorEstatus || {},
                 colorPrincipal: sec.colorPrincipal || '#00f2ff',
-                isExpanded: true, 
+                isExpanded: true, // Forzamos isExpanded=true para la carga inicial
                 registros: []
             };
 
