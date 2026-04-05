@@ -17,6 +17,10 @@
     <!-- LIBRERÍA XLSX PARA EXPORTACIÓN A EXCEL -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
+    <!-- LIBRERÍAS REQUERIDAS PARA EXPORTACIÓN A WORD (.DOCX) -->
+    <script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
     <style>
         /* ==========================================================================
            1. VARIABLES MAESTRAS Y RESETEO (UI CORPORATIVA MUNICIPAL)
@@ -912,8 +916,11 @@
             <i class="fas fa-chevron-down"></i>
         </div>
         <div id="ajustes-servidor" style="display: none; padding-top: 5px;">
+            <label style="display:block; font-size:10px; color:#a5b0bf; margin-bottom:4px;">Link Raw JSON (GitHub) o ruta en el repo</label>
+            <input type="text" id="ajuste-link-raw-json" class="modal-input" style="padding: 8px; font-size: 11px; margin-bottom: 6px;" placeholder="Ej: config.json o URL raw.githubusercontent.com/.../archivo.json">
+            <button type="button" class="btn btn-outline" style="width: 100%; padding: 6px; font-size: 9px; margin-bottom: 8px;" onclick="persistMasterJsonPathFromInput()">APLICAR RUTA / LINK</button>
             <input type="password" id="ajuste-repo-token" class="modal-input" style="padding: 8px; font-size: 11px; margin-bottom: 8px;" placeholder="Token de GitHub (ghp_...)">
-            <button class="btn btn-outline" style="width: 100%; padding: 8px; font-size: 10px;" onclick="verificarYGuardarTokenMaestro()">ENCRIPTAR Y GUARDAR TOKEN</button>
+            <button type="button" class="btn btn-outline" id="btn-verificar-token-maestro" style="width: 100%; padding: 8px; font-size: 10px;" onclick="verificarYGuardarTokenMaestro()">VERIFICAR Y GUARDAR TOKEN</button>
         </div>
     </div>
 
@@ -927,7 +934,7 @@
             <div style="font-size: 10px; color: #a5b0bf; margin-bottom: 8px;">Días restantes de servicio: <strong id="lbl-dias-lic" style="color:white;">0</strong></div>
             <input type="password" id="input-update-license" class="modal-input" style="padding: 8px; font-size: 11px; margin-bottom: 8px;" placeholder="Clave de Acceso Institucional">
             <button class="btn btn-solid-green" style="width: 100%; padding: 8px; font-size: 10px;" onclick="actualizarLicenciaInterna()">ACTUALIZAR LICENCIA</button>
-            <button class="btn btn-solid-yellow" style="width: 100%; padding: 8px; font-size: 10px; margin-top: 8px;" onclick="exportarExcelInstitucional()"><i class="fas fa-file-excel"></i> DESCARGAR EXCEL DE RESPALDO</button>
+            <button class="btn btn-solid-yellow" style="width: 100%; padding: 8px; font-size: 10px; margin-top: 8px;" onclick="descargarRespaldoWord()"><i class="fas fa-file-word"></i> DESCARGAR RESPALDO (WORD)</button>
         </div>
     </div>
 
@@ -983,8 +990,56 @@
     // VARIABLES DE GITHUB 
     const GITHUB_USER = 'proyectomaps2026';
     const GITHUB_REPO = 'mapa_hecho'; // <-- CORREGIDO AL REPOSITORIO REAL
-    const FILE_PATH = 'config.json';
+    const FILE_PATH_DEFAULT = 'config.json';
+    const LS_MASTER_JSON_PATH = 'master_config_json_path';
+    const LS_SKIP_AUTO_LOGIN = 'sgf_skip_auto_login_once';
     let fileSha = null;
+
+    function normalizarRutaJsonGithub(val) {
+        val = (val || '').trim();
+        if (!val) return FILE_PATH_DEFAULT;
+        try {
+            if (/^https?:\/\/raw\.githubusercontent\.com\//i.test(val)) {
+                const u = new URL(val);
+                const parts = u.pathname.split('/').filter(Boolean);
+                if (parts.length >= 4) return parts.slice(3).join('/');
+            }
+            if (/api\.github\.com\/repos\//i.test(val)) {
+                const idx = val.indexOf('/contents/');
+                if (idx !== -1) {
+                    const rest = val.slice(idx + '/contents/'.length).split('?')[0];
+                    try {
+                        return decodeURIComponent(rest) || FILE_PATH_DEFAULT;
+                    } catch (e) {
+                        return rest || FILE_PATH_DEFAULT;
+                    }
+                }
+            }
+        } catch (e) { /* usar valor plano */ }
+        return val.replace(/^\/+/, '') || FILE_PATH_DEFAULT;
+    }
+
+    function getEffectiveFilePath() {
+        try {
+            const p = (localStorage.getItem(LS_MASTER_JSON_PATH) || '').trim();
+            return p ? normalizarRutaJsonGithub(p) : FILE_PATH_DEFAULT;
+        } catch (e) {
+            return FILE_PATH_DEFAULT;
+        }
+    }
+
+    function githubContentsApiPath(filePath) {
+        return filePath.split('/').map(encodeURIComponent).join('/');
+    }
+
+    function persistMasterJsonPathFromInput(silent) {
+        const el = document.getElementById('ajuste-link-raw-json');
+        if (!el) return;
+        const normalized = normalizarRutaJsonGithub(el.value);
+        localStorage.setItem(LS_MASTER_JSON_PATH, normalized);
+        el.value = normalized;
+        if (!silent) alert('✅ Ruta JSON guardada: ' + normalized);
+    }
     
     // JERARQUÍA DE ACCESO Y ROLES
     let SYSTEM_AUTH = { user: 'admin', pass: 'admin' }; 
@@ -1033,12 +1088,18 @@
         };
     }
 
-    // OBTENEDOR DE TOKEN SEGURO (Desinvierte lo almacenado dependiendo del ROL)
+    // Llave maestra GitHub (solo Super Admin): siempre localStorage master_token_revert, invertida.
+    function getMasterTokenFromStorage() {
+        const tk = localStorage.getItem('master_token_revert');
+        return tk ? tk.split('').reverse().join('') : null;
+    }
+
+    // OBTENEDOR DE TOKEN SEGURO (Super Admin: únicamente llave maestra; Admin: licencia SGF)
     function getRealToken() {
         if (CURRENT_ROLE === 'SUPERADMIN') {
-            const tk = localStorage.getItem('master_token_revert');
-            return tk ? tk.split('').reverse().join('') : null;
-        } else if (CURRENT_ROLE === 'ADMIN') {
+            return getMasterTokenFromStorage();
+        }
+        if (CURRENT_ROLE === 'ADMIN') {
             const lic = localStorage.getItem('sgf_license');
             const parsed = analizarLicenciaSGF(lic);
             if (parsed.valid && !parsed.expired) {
@@ -1070,6 +1131,18 @@
             // Limpieza de DOM: Remueve elementos del cliente
             const panelAdmin = document.getElementById('panel-admin-licencia');
             if(panelAdmin) panelAdmin.remove();
+
+            const licWarn = document.getElementById('license-warning-box');
+            if (licWarn) licWarn.style.display = 'none';
+            const licLock = document.getElementById('license-lock-overlay');
+            if (licLock) licLock.style.display = 'none';
+
+            const roToggle = document.getElementById('toggle-readonly');
+            if (roToggle) {
+                roToggle.checked = false;
+                modoLecturaGlobal = false;
+                alternarModoLectura();
+            }
 
             document.getElementById('login-overlay').style.display = 'none';
             actualizarUIYMapa(); 
@@ -1135,7 +1208,7 @@
         }
     }
 
-    function guardarLicenciaDesdeBloqueo() {
+    async function guardarLicenciaDesdeBloqueo() {
         const val = document.getElementById('lock-new-license').value.trim();
         if(!val) return alert("Ingrese el código de licencia.");
         const est = analizarLicenciaSGF(val);
@@ -1145,10 +1218,14 @@
         alert("Licencia Activada con éxito. Guarde este código en un lugar seguro.");
         document.getElementById('license-lock-overlay').style.display = 'none';
         validarLicenciaYBloqueo();
-        cargarDatosNube();
+        
+        // CORRECCIÓN 1: Persistencia de la Licencia (Auto-Save)
+        await cargarDatosNube(); 
+        SYSTEM_AUTH.license = val; 
+        await guardarEnServidor(); 
     }
 
-    function actualizarLicenciaInterna() {
+    async function actualizarLicenciaInterna() {
         const val = document.getElementById('input-update-license').value.trim();
         if(!val) return alert("Ingrese el código de licencia.");
         const est = analizarLicenciaSGF(val);
@@ -1157,21 +1234,23 @@
         localStorage.setItem('sgf_license', val);
         alert("Licencia Renovada con éxito.");
         validarLicenciaYBloqueo();
+
+        // CORRECCIÓN 1: Persistencia de la Licencia (Auto-Save)
+        SYSTEM_AUTH.license = val;
+        await guardarEnServidor();
     }
 
     /* ==========================================================================
-       NUEVO BLOQUE: EXPORTACIÓN A EXCEL (SECTORIZACIÓN POR COORDENADAS)
+       BLOQUE DE EXPORTACIÓN DE DATOS (EXCEL Y WORD)
        ========================================================================== */
     function exportarExcelInstitucional() {
         if(Object.keys(STORE).length === 0) return alert("No hay datos en memoria para exportar.");
         const wb = XLSX.utils.book_new();
         let datosParaExcel = [];
         
-        // Recorremos los registros que están cargados en el mapa
         Object.keys(STORE).forEach(idCapa => {
             STORE[idCapa].registros.forEach(reg => {
                 const d = reg.datosGenerales;
-                // IMPORTANTE: El nombre del sector se toma del contenedor donde está el punto
                 const nombreSector = STORE[idCapa].nombreSector || "Sin Sector"; 
 
                 datosParaExcel.push({
@@ -1183,20 +1262,139 @@
             });
         });
 
-        // Ordenar por Sector y luego por Nombre
         datosParaExcel.sort((a, b) => a.SECTOR.localeCompare(b.SECTOR) || a.CONTRIBUYENTE.localeCompare(b.CONTRIBUYENTE));
 
         const ws = XLSX.utils.json_to_sheet(datosParaExcel);
-        
-        // PIE DE PÁGINA LEGAL CON LOS ARTÍCULOS SOLICITADOS
         const textoLegal = "Este reporte es un instrumento de transparencia emitido en cumplimiento de los Arts. 168 y 174 de la CRBV; Arts. 2, 75 y 161 de la LOPPM; y los Arts. 9, 23 y 77 de la Ley de Contraloría General de la República. El Plan Piloto de la Alcaldía de Ayacucho garantiza información fidedigna y auditable, protegiendo datos personales (Ley de Infogobierno).";
-        
         const filaFinal = datosParaExcel.length + 3;
         XLSX.utils.sheet_add_aoa(ws, [["LISTADO GENERAL - PLAN PILOTO - ALCALDÍA DE AYACUCHO"]], { origin: "A1" });
         XLSX.utils.sheet_add_aoa(ws, [[textoLegal]], { origin: `A${filaFinal}` });
         
         XLSX.utils.book_append_sheet(wb, ws, "Reporte Fiscal");
         XLSX.writeFile(wb, "Reporte_Fiscal_Ayacucho.xlsx");
+    }
+
+    function descargarRespaldoWord() {
+        if (typeof docx === 'undefined') {
+            return alert("Error: La librería de generación de documentos no se cargó correctamente.");
+        }
+        if (Object.keys(STORE).length === 0) {
+            return alert("No hay datos cargados para generar un respaldo.");
+        }
+
+        const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, Header, Footer, PageNumber } = docx;
+        const systemId = `SGF-CLOUD-${new Date().getFullYear()}`;
+
+        const allRecords = [];
+        Object.values(STORE).forEach(sector => {
+            allRecords.push(...sector.registros);
+        });
+
+        const tableRows = [];
+        
+        // Define header row
+        const headerRow = new TableRow({
+            children: [
+                new TableCell({ width: { size: 2500, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "IDENTIDAD / REGISTRO", bold: true, size: 16 })] })] }),
+                new TableCell({ width: { size: 3000, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "UBICACIÓN", bold: true, size: 16 })] })] }),
+                new TableCell({ width: { size: 2000, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "ESTADO FISCAL", bold: true, size: 16 })] })] }),
+                new TableCell({ width: { size: 2000, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "DOCUMENTACIÓN", bold: true, size: 16 })] })] }),
+            ],
+            tableHeader: true,
+        });
+        tableRows.push(headerRow);
+
+        // Create data rows
+        allRecords.forEach(reg => {
+            const d = reg.datosGenerales;
+
+            // Mapeo de Datos con lógica de precisión
+            const identidad = d["Razón Social"] || d["Nombre Comercial"] || d["Contribuyente"] || "Sin Identificar";
+            const registro = d["RIF / Registro"] || d["RIF"] || "N/A";
+            
+            const latLng = reg.capaLeaflet.getLatLng ? reg.capaLeaflet.getLatLng() : { lat: 0, lng: 0 };
+            const coordsText = `GPS: ${latLng.lat.toFixed(6)}, ${latLng.lng.toFixed(6)}`;
+            const ubicacion = `${d["Dirección (Referencia Manual)"] || "No especificada."}\n${coordsText}`;
+            
+            const documentacion = `Exp: ${d["N° Expediente"] || "N/A"}\nCenso: ${d["N° de censo"] || reg.idFisico}\nAuditoría: ${d["ID_Auditoria"] || "N/A"}`;
+            
+            const estadoFiscal = `Validación: ${d["Validación Fiscal"] || d["Estatus"] || "N/A"}\nLicencia: ${d["Situación Sin Licencia"] || "N/A"}\nPago: ${d["Semáforo de Acuerdo de Pago"] || "N/A"}`;
+
+            const dataRow = new TableRow({
+                children: [
+                    new TableCell({ children: [
+                        new Paragraph({ children: [new TextRun({ text: identidad, bold: true, size: 18 })] }),
+                        new Paragraph({ children: [new TextRun({ text: registro, size: 16 })] }),
+                    ]}),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: ubicacion, size: 16 })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: estadoFiscal, size: 16 })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: documentacion, size: 16 })] })] }),
+                ],
+            });
+            tableRows.push(dataRow);
+        });
+
+        const table = new Table({
+            rows: tableRows,
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            columnWidths: [2500, 3000, 2000, 2000],
+        });
+
+        const doc = new Document({
+            sections: [{
+                headers: {
+                    default: new Header({
+                        children: [new Paragraph({
+                            text: "REPÚBLICA BOLIVARIANA DE VENEZUELA - ALCALDÍA DEL MUNICIPIO AYACUCHO",
+                            alignment: AlignmentType.CENTER,
+                            style: "Header"
+                        })],
+                    }),
+                },
+                footers: {
+                    default: new Footer({
+                        children: [new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [
+                                new TextRun(`Documento generado por SGF-CLOUD - ID Sistema: ${systemId} - Página `),
+                                new TextRun({
+                                    children: [PageNumber.CURRENT, " de ", PageNumber.TOTAL_PAGES],
+                                }),
+                            ],
+                        })],
+                    }),
+                },
+                children: [
+                    new Paragraph({ text: `Fecha de Emisión: ${new Date().toLocaleString()}`, alignment: AlignmentType.RIGHT }),
+                    new Paragraph(" "),
+                    table,
+                    new Paragraph(" "), 
+                    new Paragraph({
+                        children: [
+                            new TextRun({
+                                text: "CERTIFICACIÓN LEGAL Y ADMINISTRATIVA: ",
+                                bold: true,
+                                size: 20,
+                                break: 1,
+                            }),
+                            new TextRun({
+                                text: "El presente documento constituye un Respaldo Maestro de Fiscalización, emitido bajo los estándares de la Ley Orgánica de la Contraloría General de la República (Arts. 7, 9, 77 y 91), la Ley de Infogobierno (Art. 4) y la Constitución de la República (Arts. 168 y 174). ",
+                                size: 20,
+                            }),
+                            new TextRun({
+                                text: "Se hace constar que la información aquí detallada (RIF, Expediente, Censo y Validación) ha sido recolectada y validada en campo por el Fiscal Responsable asignado. Este reporte goza de presunción de veracidad para efectos de recaudación municipal. Cualquier modificación no autorizada de este soporte digital o físico anula su validez ante la Dirección de Hacienda.",
+                                size: 20,
+                            }),
+                        ],
+                        alignment: AlignmentType.JUSTIFIED,
+                    }),
+                ],
+            }],
+        });
+
+        Packer.toBlob(doc).then(blob => {
+            saveAs(blob, `Respaldo_Maestro_Fiscal_Ayacucho_${Date.now()}.docx`);
+        });
     }
 
     /* ==========================================================================
@@ -1304,6 +1502,15 @@
     let modoLecturaGlobal = false;
     let textoFiltroGlobal = "";
 
+    function lecturaBloqueaEdicion() {
+        return modoLecturaGlobal && CURRENT_ROLE !== 'SUPERADMIN';
+    }
+
+    function capaMaestraProtegidaContraEdicion(idSector) {
+        const s = STORE[idSector];
+        return !!(s && s.isMaster && CURRENT_ROLE !== 'SUPERADMIN');
+    }
+
     const DICCIONARIO_ESTATUS = {
         "VIGENTE": { color: "#238636" },
         "VENCIDA": { color: "#da3633" },
@@ -1324,7 +1531,7 @@
     });
 
     function activarHerramienta(tipo) {
-        if(modoLecturaGlobal) return alert("⚠️ MODO LECTURA ACTIVO: Desactive el candado arriba para dibujar.");
+        if(lecturaBloqueaEdicion()) return alert("⚠️ MODO LECTURA ACTIVO: Desactive el candado arriba para dibujar.");
         if(!capaActivaId) return alert("⚠️ SELECCIÓN REQUERIDA: Marque el círculo de la Capa Activa en el panel izquierdo antes de registrar un punto.");
         if(!STORE[capaActivaId].visible) return alert("⚠️ CAPA OCULTA: La capa activa está apagada. Encienda el Checkbox para dibujar.");
         
@@ -1335,11 +1542,11 @@
         const idFisico = L.stamp(evento.layer);
         
         if(evento.layer instanceof L.Marker) {
-            if (!modoLecturaGlobal) evento.layer.options.draggable = true;
+            if (!lecturaBloqueaEdicion()) evento.layer.options.draggable = true;
             evento.layer.on('dragend', () => actualizarUIYMapa());
         } else if (evento.layer instanceof L.Polygon || evento.layer instanceof L.Rectangle) {
             evento.layer.setStyle({ color: DICCIONARIO_ESTATUS["CENSO / NUEVO"].color, fillColor: DICCIONARIO_ESTATUS["CENSO / NUEVO"].color, fillOpacity: 0.2 });
-            if (!modoLecturaGlobal) evento.layer.editing.enable();
+            if (!lecturaBloqueaEdicion()) evento.layer.editing.enable();
             evento.layer.on('edit', () => actualizarUIYMapa());
         }
 
@@ -1392,7 +1599,7 @@
     }
 
     function cambiarColorEstatusSector(idSector, estatus, colorHex) {
-        if (modoLecturaGlobal) return alert("Modo lectura activo.");
+        if (lecturaBloqueaEdicion()) return alert("Modo lectura activo.");
         if (!STORE[idSector]) return;
         
         if(!STORE[idSector].coloresPorEstatus) STORE[idSector].coloresPorEstatus = {};
@@ -1414,7 +1621,7 @@
     }
 
     function cambiarColorSector(idSector, colorHex) {
-        if (modoLecturaGlobal) return alert("Modo lectura activo.");
+        if (lecturaBloqueaEdicion()) return alert("Modo lectura activo.");
         if (!STORE[idSector]) return;
         
         STORE[idSector].colorPrincipal = colorHex;
@@ -1441,8 +1648,8 @@
 
     // ELIMINACIÓN INDIVIDUAL (PARA EL ADMIN EN EL ÁRBOL)
     function eliminarDelClon(idSector, idFisico) {
-        if(modoLecturaGlobal) return;
-        if(STORE[idSector].isMaster) return alert("Registro Protegido en Capa Maestra.");
+        if(lecturaBloqueaEdicion()) return;
+        if(capaMaestraProtegidaContraEdicion(idSector)) return alert("Registro Protegido en Capa Maestra.");
         if(!confirm("¿Eliminar este contribuyente del mapa y del censo?")) return;
         
         const reg = STORE[idSector].registros.find(r => String(r.idFisico) === String(idFisico));
@@ -1539,7 +1746,7 @@
                     
                     <div class="sector-controls">
                         <i class="fas fa-copy sector-trash" title="Clonar Sector a partir de este RAW" onclick="event.stopPropagation(); clonarSector('${idSector}')"></i>
-                        ${!sectorData.isMaster ? `
+                        ${!capaMaestraProtegidaContraEdicion(idSector) ? `
                         <i class="fas fa-broom sector-trash" title="Limpiar Lista (Borrar todos los registros de esta capa)" onclick="event.stopPropagation(); limpiarSector('${idSector}')"></i>
                         <i class="fas fa-trash-alt sector-trash" title="Eliminar Capa Completa" style="color: var(--color-vencida);" onclick="event.stopPropagation(); eliminarSectorDefinitivo('${idSector}')"></i>
                         ` : `<i class="fas fa-shield-alt" style="color:var(--cyan-neon); font-size: 13px;" title="Capa Maestra (Protegida)"></i>`}
@@ -1578,7 +1785,7 @@
                             </div>
                         </div>
                         <span class="status-count">${gruposPorEstatus[estatus].conteo}</span>
-                        ${!sectorData.isMaster ? `
+                        ${!capaMaestraProtegidaContraEdicion(idSector) ? `
                             <div style="display: flex; align-items: center; gap: 15px; margin-left: auto; padding-left: 10px;">
                                 <input type="checkbox" 
                                        style="cursor:pointer;"
@@ -1606,7 +1813,7 @@
                                 <span title="${local.datosGenerales["Contribuyente"] || 'SIN NOMBRE'}">${local.datosGenerales["Contribuyente"] || 'SIN NOMBRE'}</span>
                             </div>
                             <div style="display:flex; align-items:center; gap:12px; padding-left:10px;">
-                            ${!sectorData.isMaster ? `
+                            ${!capaMaestraProtegidaContraEdicion(idSector) ? `
                                 <input type="checkbox" class="chk-registro" data-id="${local.idFisico}" onclick="event.stopPropagation();" title="Marcar para borrado en lote" style="cursor:pointer;">
                                 <i class="fas fa-trash sector-trash" title="Borrar este registro" onclick="event.stopPropagation(); eliminarDelClon('${idSector}', '${local.idFisico}')"></i>
                             ` : `<i class="fas fa-lock" style="font-size:11px; color:#6e7681;" title="Registro Protegido"></i>`}
@@ -1658,7 +1865,7 @@
         capaMapa.bindPopup(htmlContenido, { 
             minWidth: 320, 
             closeButton: true, 
-            className: modoLecturaGlobal ? 'readonly-mode' : '' 
+            className: lecturaBloqueaEdicion() ? 'readonly-mode' : '' 
         }).openPopup();
         
         mapa._popup = capaMapa.getPopup();
@@ -1725,7 +1932,7 @@
                     <div class="read-value" id="view-val-${idFisico}-${clave.replace(/\s/g,'')}">${registro.datosGenerales[clave] || '-'}</div>
                 </div>`;
             }
-            if(!modoLecturaGlobal) {
+            if(!lecturaBloqueaEdicion()) {
                 html += `<button class="btn-popup-action btn-edit" onclick="toggleModoPopup('${idFisico}', 'edit')"><i class="fas fa-pen"></i> MODO EDICIÓN</button>`;
             }
             html += `</div>`;
@@ -1766,7 +1973,7 @@
             
             <button class="btn-popup-action btn-save" onclick="toggleModoPopup('${idFisico}', 'view')"><i class="fas fa-save"></i> GUARDAR Y VOLVER</button>`;
             
-            if(!sectorData.isMaster) {
+            if(!capaMaestraProtegidaContraEdicion(idSector)) {
                 html += `<button class="btn-popup-action btn-del" onclick="eliminarDelClon('${idSector}', '${idFisico}')">ELIMINAR REGISTRO</button>`;
             }
             
@@ -1778,7 +1985,7 @@
     }
 
     function cambiarColorPin(idSector, idFisico, colorHex) {
-        if(modoLecturaGlobal) return;
+        if(lecturaBloqueaEdicion()) return;
         const regOrigen = STORE[idSector].registros.find(r => String(r.idFisico) === String(idFisico));
         if(!regOrigen) return;
 
@@ -1806,7 +2013,7 @@
 
     function ejecutarToggleOjo(eventoClick, idSector, idFisico, claveCampo) {
         eventoClick.stopPropagation(); 
-        if(modoLecturaGlobal) return;
+        if(lecturaBloqueaEdicion()) return;
 
         const regOrigen = STORE[idSector].registros.find(r => String(r.idFisico) === String(idFisico));
         if(!regOrigen) return;
@@ -1832,7 +2039,7 @@
 
         if(mapa._popup) {
             const capaMapa = regOrigen.capaLeaflet;
-            capaMapa.unbindPopup().bindPopup(generarContenidoHTMLPopup(idSector, idFisico, true), { minWidth: 320, closeButton: true, className: modoLecturaGlobal ? 'readonly-mode' : '' }).openPopup();
+            capaMapa.unbindPopup().bindPopup(generarContenidoHTMLPopup(idSector, idFisico, true), { minWidth: 320, closeButton: true, className: lecturaBloqueaEdicion() ? 'readonly-mode' : '' }).openPopup();
         }
     }
 
@@ -1875,7 +2082,7 @@
         const bMarker = document.getElementById('btn-draw-marker');
         const bPoly = document.getElementById('btn-draw-poly');
         
-        if(modoLecturaGlobal) {
+        if(lecturaBloqueaEdicion()) {
             bMarker.style.opacity = "0.3"; bMarker.style.pointerEvents = "none";
             bPoly.style.opacity = "0.3"; bPoly.style.pointerEvents = "none";
             if(mapa._popup) mapa.closePopup(); 
@@ -1887,13 +2094,13 @@
         for(let id in STORE) {
             STORE[id].registros.forEach(reg => {
                 if (reg.tipoGeometria === 'polygon' || reg.tipoGeometria === 'rectangle') {
-                    if (modoLecturaGlobal) {
+                    if (lecturaBloqueaEdicion()) {
                         if(reg.capaLeaflet.editing) reg.capaLeaflet.editing.disable();
                     } else {
                         if(reg.capaLeaflet.editing) reg.capaLeaflet.editing.enable();
                     }
                 } else if (reg.tipoGeometria === 'marker') {
-                    if (modoLecturaGlobal) {
+                    if (lecturaBloqueaEdicion()) {
                         if(reg.capaLeaflet.dragging) reg.capaLeaflet.dragging.disable();
                     } else {
                         if(reg.capaLeaflet.dragging) reg.capaLeaflet.dragging.enable();
@@ -1918,7 +2125,7 @@
     }
 
     function crearNuevoSector() {
-        if(modoLecturaGlobal) return alert("Desactive el Modo Lectura");
+        if(lecturaBloqueaEdicion()) return alert("Desactive el Modo Lectura");
         const nombre = prompt("Nombre del Nuevo Sector/Capa:");
         if(!nombre) return;
         const id = 'sec_' + Date.now();
@@ -1938,7 +2145,7 @@
     }
 
     function clonarSector(idSectorOriginal) {
-        if(modoLecturaGlobal) return alert("Desactive el Modo Lectura");
+        if(lecturaBloqueaEdicion()) return alert("Desactive el Modo Lectura");
         const sectorOriginal = STORE[idSectorOriginal];
         const nombre = prompt("Nombre de la nueva capa clonada:", sectorOriginal.nombreSector + " (CLON)");
         if(!nombre) return;
@@ -1960,7 +2167,7 @@
         sectorOriginal.registros.forEach(reg => {
             let capaNueva;
             if(reg.tipoGeometria === 'marker') {
-               capaNueva = L.marker(reg.capaLeaflet.getLatLng(), {icon: reg.capaLeaflet.options.icon, draggable: !modoLecturaGlobal});
+               capaNueva = L.marker(reg.capaLeaflet.getLatLng(), {icon: reg.capaLeaflet.options.icon, draggable: !lecturaBloqueaEdicion()});
             } else {
                capaNueva = L.polygon(reg.capaLeaflet.getLatLngs(), reg.capaLeaflet.options);
             }
@@ -1984,8 +2191,8 @@
     }
     
     function limpiarSector(idSector) {
-        if(modoLecturaGlobal) return alert("Desactive el Modo Lectura");
-        if(STORE[idSector].isMaster) return alert("Capa Maestra Protegida. No se puede limpiar.");
+        if(lecturaBloqueaEdicion()) return alert("Desactive el Modo Lectura");
+        if(capaMaestraProtegidaContraEdicion(idSector)) return alert("Capa Maestra Protegida. No se puede limpiar.");
         if(!confirm(`⚠️ ATENCIÓN: ¿Seguro que desea vaciar la capa "${STORE[idSector].nombreSector}" eliminando todos sus registros internos?`)) return;
         
         if (capasSectores[idSector]) {
@@ -1996,8 +2203,8 @@
     }
 
     function eliminarSectorDefinitivo(idSector) {
-        if(modoLecturaGlobal) return alert("Desactive el Modo Lectura");
-        if(STORE[idSector].isMaster) return alert("Capa Maestra Protegida. No se puede eliminar por seguridad.");
+        if(lecturaBloqueaEdicion()) return alert("Desactive el Modo Lectura");
+        if(capaMaestraProtegidaContraEdicion(idSector)) return alert("Capa Maestra Protegida. No se puede eliminar por seguridad.");
         if(!confirm(`⚠️ PELIGRO:\n¿Borrar el sector "${STORE[idSector].nombreSector}" y todos sus marcadores? Esta acción purga los datos de la memoria.`)) return;
         
         if (capasSectores[idSector]) {
@@ -2020,7 +2227,7 @@
 
     // Función para eliminar SOLO lo que está marcado en esa categoría
     function eliminarSeleccionadosEnCat(idSector, idContenedor, nombreCategoria) {
-        if(modoLecturaGlobal) return alert("Desactive el Modo Lectura para eliminar registros.");
+        if(lecturaBloqueaEdicion()) return alert("Desactive el Modo Lectura para eliminar registros.");
         const contenedor = document.getElementById(idContenedor);
         if (!contenedor) return;
         const seleccionados = contenedor.querySelectorAll('.chk-registro:checked');
@@ -2161,7 +2368,9 @@
         const div = document.getElementById('ajustes-servidor');
         if (div.style.display === 'none') {
             div.style.display = 'block';
-            document.getElementById('ajuste-repo-token').value = getRealToken() || '';
+            document.getElementById('ajuste-repo-token').value = getMasterTokenFromStorage() || '';
+            const linkEl = document.getElementById('ajuste-link-raw-json');
+            if (linkEl) linkEl.value = getEffectiveFilePath();
         } else {
             div.style.display = 'none';
         }
@@ -2177,33 +2386,55 @@
     }
     
     async function verificarYGuardarTokenMaestro() {
+        if (CURRENT_ROLE !== 'SUPERADMIN') {
+            return alert("La verificación de llave maestra solo está disponible en sesión Super Admin.");
+        }
         const rawToken = document.getElementById('ajuste-repo-token').value.trim();
         if(!rawToken) return alert("Ingrese el token de GitHub (ghp_...).");
+        persistMasterJsonPathFromInput(true);
 
-        const btn = document.querySelector('#ajustes-servidor button');
-        const originalText = btn.innerText;
-        btn.innerText = "VERIFICANDO...";
-        btn.disabled = true;
+        const btn = document.getElementById('btn-verificar-token-maestro');
+        const originalText = btn ? btn.innerText : '';
+        if (btn) {
+            btn.innerText = "VERIFICANDO...";
+            btn.disabled = true;
+        }
 
         try {
             const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}`, {
-                headers: { 'Authorization': 'token ' + rawToken }
+                headers: {
+                    'Authorization': 'token ' + rawToken,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
             });
 
             if (res.ok) {
                 const pikaToken = rawToken.split('').reverse().join('');
                 localStorage.setItem('master_token_revert', pikaToken);
-                alert("✅ Llave Maestra Encriptada y Guardada de forma segura.");
-                await cargarDatosNube(); 
+                SYSTEM_AUTH.masterToken = pikaToken;
+                try {
+                    await cargarDatosNube();
+                } catch (loadErr) {
+                    console.warn("Carga inicial tras verificar token:", loadErr);
+                }
+                const pushOk = await guardarEnServidor({ suppressSuccessAlert: true });
+                if (!pushOk) return;
+                alert("✅ Token verificado, llave persistida y config.json sincronizado con el repositorio.");
             } else {
-                throw new Error(`Error ${res.status}: El token es inválido o no tiene acceso al repositorio '${GITHUB_USER}/${GITHUB_REPO}'.`);
+                if (res.status === 401 || res.status === 403) {
+                    localStorage.removeItem('master_token_revert');
+                    if (SYSTEM_AUTH && SYSTEM_AUTH.masterToken) delete SYSTEM_AUTH.masterToken;
+                }
+                throw new Error(`Error ${res.status}: El token es inválido, expiró o no tiene acceso al repositorio '${GITHUB_USER}/${GITHUB_REPO}'. Pegue un token nuevo y pulse de nuevo Verificar y Guardar.`);
             }
         } catch(e) {
             console.error(e);
             alert(`❌ Error de verificación: ${e.message}`);
         } finally {
-            btn.innerText = originalText;
-            btn.disabled = false;
+            if (btn) {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
         }
     }
     
@@ -2215,7 +2446,7 @@
         }
 
         try {
-            const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${FILE_PATH}`, {
+            const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${githubContentsApiPath(getEffectiveFilePath())}`, {
                 headers: { 'Authorization': 'token ' + GITHUB_TOKEN_DYNAMIC }
             });
             if (res.ok) {
@@ -2238,12 +2469,24 @@
     }
 
     function cerrarSesionSeguridad() {
+        CURRENT_ROLE = null;
+        try {
+            sessionStorage.setItem(LS_SKIP_AUTO_LOGIN, '1');
+        } catch (e) {}
         location.reload();
     }
 
-    async function guardarEnServidor() {
+    async function guardarEnServidor(opts) {
+        opts = opts || {};
         const GITHUB_TOKEN_DYNAMIC = getRealToken();
-        if(!GITHUB_TOKEN_DYNAMIC) return alert("❌ Error de Seguridad: No se encontró una Llave Maestra ni Licencia activa válida para guardar en la Nube.");
+        if(!GITHUB_TOKEN_DYNAMIC) {
+            if (CURRENT_ROLE === 'SUPERADMIN') {
+                alert("❌ No hay llave maestra de GitHub guardada en este equipo. Abra «LLAVE MAESTRA GITHUB», pegue un token (ghp_...) y pulse Verificar y Guardar.");
+            } else {
+                alert("❌ Error de Seguridad: No se encontró una Llave Maestra ni Licencia activa válida para guardar en la Nube.");
+            }
+            return false;
+        }
 
         const btn = document.getElementById('btn-save-server');
         const btnOriginalText = btn.innerHTML;
@@ -2253,7 +2496,7 @@
         try {
             let currentSha = null;
             try {
-                const getRes = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${FILE_PATH}`, {
+                const getRes = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${githubContentsApiPath(getEffectiveFilePath())}`, {
                     method: 'GET',
                     headers: {
                         'Authorization': 'token ' + GITHUB_TOKEN_DYNAMIC,
@@ -2283,7 +2526,7 @@
             
             if (currentSha) payload.sha = currentSha;
 
-            const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${FILE_PATH}`, {
+            const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${githubContentsApiPath(getEffectiveFilePath())}`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': 'token ' + GITHUB_TOKEN_DYNAMIC,
@@ -2297,10 +2540,14 @@
             
             const data = await res.json();
             fileSha = data.content.sha;
-            alert("✅ Datos de Hacienda guardados correctamente en la Nube.");
+            if (!opts.suppressSuccessAlert) {
+                alert("✅ Datos de Hacienda guardados correctamente en la Nube.");
+            }
+            return true;
         } catch(e) {
             console.error(e);
-            alert("❌ Error crítico al guardar en GitHub: " + e.message);
+            alert("❌ Error crítico al guardar en GitHub: " + (e.message || e));
+            return false;
         } finally {
             btn.innerHTML = btnOriginalText;
             btn.disabled = false;
@@ -2353,7 +2600,7 @@
                     const lngParseada = parseFloat(reg.coords.lng);
                     capa = L.marker([latParseada, lngParseada], { 
                         icon: crearPinFiscal(colorAUsar), 
-                        draggable: !modoLecturaGlobal 
+                        draggable: !lecturaBloqueaEdicion() 
                     });
                     capa.on('dragend', () => actualizarUIYMapa());
                 } else if ((reg.tipoGeometria === 'polygon' || reg.tipoGeometria === 'rectangle') && reg.coords) {
@@ -2365,7 +2612,7 @@
                         weight: 3, 
                         dashArray: '5, 5' 
                     });
-                    if (!modoLecturaGlobal) capa.editing.enable();
+                    if (!lecturaBloqueaEdicion()) capa.editing.enable();
                     capa.on('edit', () => actualizarUIYMapa());
                 }
 
@@ -2389,11 +2636,97 @@
         actualizarUIYMapa();
     }
 
-    function initSecurity() {
+    // Auto-login: 1) Super Admin solo con master_token_revert (sin licencia SGF). 2) Admin Hacienda con licencia en config.
+    window.onload = async function() {
         document.getElementById('login-overlay').style.display = 'flex';
-    }
-    
-    initSecurity();
+
+        try {
+            if (sessionStorage.getItem(LS_SKIP_AUTO_LOGIN) === '1') {
+                sessionStorage.removeItem(LS_SKIP_AUTO_LOGIN);
+                CURRENT_ROLE = null;
+                return;
+            }
+        } catch (e) {}
+
+        try {
+            const masterTk = getMasterTokenFromStorage();
+            if (masterTk) {
+                const resMaster = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${githubContentsApiPath(getEffectiveFilePath())}`, {
+                    headers: {
+                        'Authorization': 'token ' + masterTk,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (resMaster.ok) {
+                    const data = await resMaster.json();
+                    fileSha = data.sha;
+                    const jsonParsed = JSON.parse(decodeURIComponent(escape(atob(data.content))));
+                    if (jsonParsed.credentials) SYSTEM_AUTH = jsonParsed.credentials;
+                    reconstruirDesdeJSON(jsonParsed.store || {});
+
+                    CURRENT_ROLE = 'SUPERADMIN';
+                    document.getElementById('rol-indicador').innerHTML = '<i class="fas fa-crown"></i> SESIÓN: SUPER ADMIN (LLAVE MAESTRA)';
+                    document.getElementById('panel-superadmin').style.display = 'block';
+                    const btnRaw = document.getElementById('btn-cargar-raw');
+                    if (btnRaw) btnRaw.style.display = 'flex';
+                    const panelAdmin = document.getElementById('panel-admin-licencia');
+                    if (panelAdmin) panelAdmin.remove();
+                    const licWarn = document.getElementById('license-warning-box');
+                    if (licWarn) licWarn.style.display = 'none';
+
+                    const roToggleM = document.getElementById('toggle-readonly');
+                    if (roToggleM) {
+                        roToggleM.checked = false;
+                        modoLecturaGlobal = false;
+                        alternarModoLectura();
+                    }
+
+                    document.getElementById('login-overlay').style.display = 'none';
+                    actualizarUIYMapa();
+                    return;
+                }
+                if (resMaster.status === 401 || resMaster.status === 403) {
+                    localStorage.removeItem('master_token_revert');
+                }
+            }
+
+            const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${githubContentsApiPath(getEffectiveFilePath())}`, {
+                headers: { 'Accept': 'application/vnd.github.v3+json' }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                fileSha = data.sha;
+                const jsonParsed = JSON.parse(decodeURIComponent(escape(atob(data.content))));
+
+                if (jsonParsed.credentials && jsonParsed.credentials.license) {
+                    const est = analizarLicenciaSGF(jsonParsed.credentials.license);
+
+                    if (est.valid && !est.expired) {
+                        localStorage.setItem('sgf_license', jsonParsed.credentials.license);
+                        SYSTEM_AUTH = jsonParsed.credentials;
+                        reconstruirDesdeJSON(jsonParsed.store || {});
+
+                        CURRENT_ROLE = 'ADMIN';
+                        document.getElementById('rol-indicador').innerHTML = '<i class="fas fa-user-shield"></i> SESIÓN: ADMIN HACIENDA (AUTO)';
+                        document.getElementById('panel-admin-licencia').style.display = 'block';
+
+                        const btnRaw = document.getElementById('btn-cargar-raw');
+                        if(btnRaw) btnRaw.remove();
+                        const pnlSup = document.getElementById('panel-superadmin');
+                        if(pnlSup) pnlSup.remove();
+
+                        document.getElementById('login-overlay').style.display = 'none';
+                        actualizarUIYMapa();
+                        iniciarCicloLicenciaAdmin();
+                        return;
+                    }
+                }
+            }
+        } catch(e) {
+            console.warn("Validación silenciosa del Auto-Login falló o no tiene acceso: ", e);
+        }
+    };
 
 </script>
 </body>
