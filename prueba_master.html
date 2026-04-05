@@ -96,7 +96,6 @@
         .sector-card { margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: rgba(0,0,0,0.3); overflow: hidden; transition: all 0.3s ease; }
         .sector-card.is-active { border-color: var(--cyan-neon); background: rgba(0, 242, 255, 0.03); box-shadow: 0 0 20px rgba(0, 242, 255, 0.05); }
         
-        /* FILA DEL SECTOR */
         .sector-header { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid transparent; cursor: pointer; gap: 15px; }
         .sector-header:hover { background: rgba(255,255,255,0.05); }
         .sector-title-group { display: flex; align-items: center; gap: 15px; flex: 1; }
@@ -111,68 +110,56 @@
         .sector-trash:hover { color: var(--color-vencida); text-shadow: 0 0 10px var(--color-vencida); }
 
         /* ==========================================================================
-           ACORDEÓN DE ESTATUS (DISEÑO RESTAURADO EXACTO A LA IMAGEN)
+           ACORDEÓN DE ESTATUS Y LISTA (ESTÉTICA RESTAURADA PERFECTA)
            ========================================================================== */
         .status-group { border-top: 1px solid var(--border-color); background: rgba(255,255,255,0.01); }
         
         .status-header { 
             padding: 10px 16px; 
+            font-size: 11px; 
+            font-weight: 800; 
             display: flex; 
             align-items: center; 
-            justify-content: space-between;
-            gap: 12px; 
+            justify-content: space-between; 
             cursor: pointer; 
-            border-bottom: 1px solid rgba(255,255,255,0.02);
-            transition: background 0.2s;
         }
+        
         .status-header:hover { background: rgba(255,255,255,0.04); }
-
-        input[type="color"].status-color-square {
+        
+        .status-info { 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+        }
+        
+        /* Limpieza Absoluta del Input de Color (Sin bordes ni círculos extraños) */
+        input[type="color"] {
             -webkit-appearance: none;
             border: none;
             width: 14px;
             height: 14px;
-            padding: 0;
             border-radius: 2px;
+            padding: 0;
             cursor: pointer;
             background: transparent;
         }
-        input[type="color"].status-color-square::-webkit-color-swatch-wrapper {
+        input[type="color"]::-webkit-color-swatch-wrapper {
             padding: 0;
         }
-        input[type="color"].status-color-square::-webkit-color-swatch {
+        input[type="color"]::-webkit-color-swatch {
             border: none;
             border-radius: 2px;
         }
-
-        .status-row-label {
-            flex: 1; 
-            min-width: 0; 
-            font-family: 'Inter', sans-serif; 
-            font-weight: 900; 
-            font-size: 11px; 
-            color: var(--text-main); 
-            overflow: hidden; 
-            text-overflow: ellipsis; 
-            white-space: nowrap; 
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-        }
         
         .status-count { 
-            background: rgba(255, 255, 255, 0.1); 
+            background: rgba(255,255,255,0.1); 
+            padding: 2px 8px; 
             border-radius: 12px; 
-            padding: 3px 10px; 
             font-size: 10px; 
-            font-weight: 800; 
-            font-family: 'Inter', sans-serif; 
-            color: var(--text-main); 
-            flex-shrink: 0; 
-            text-align: center; 
         }
 
         .local-list { background: rgba(0,0,0,0.5); max-height: 250px; overflow-y: auto; }
-        .local-row { padding: 8px 16px 8px 24px; font-size: 11px; color: #a5b0bfff; display: flex; align-items: center; justify-content: space-between; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.02); gap: 12px; }
+        .local-row { padding: 8px 16px 8px 24px; font-size: 11px; color: #a5b0bfff; display: flex; align-items: center; justify-content: space-between; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.02); }
         .local-row:hover { color: white; background: rgba(255,255,255,0.08); }
 
         /* FOOTER SIDEBAR */
@@ -180,6 +167,7 @@
         .btn-outline { background: transparent; border: 1px solid var(--border-color); color: white; padding: 14px; border-radius: 8px; font-size: 11px; }
         .btn-outline:hover { border-color: white; background: rgba(255,255,255,0.05); }
         .btn-solid-green { background: var(--color-vigente); color: #fff; padding: 14px; border-radius: 8px; font-size: 11px; }
+        .btn-solid-yellow { background: var(--color-temporal); color: #000; padding: 14px; border-radius: 8px; font-size: 11px; }
 
         /* ==========================================================================
            3. POPUPS INMORTALES (VISTA LECTURA Y EDICIÓN DOBLE CONTENEDOR)
@@ -221,7 +209,7 @@
         .leaflet-editing-icon { border-radius: 50% !important; border: 2px solid var(--border-color) !important; background-color: #fff !important; width: 12px !important; height: 12px !important; margin-left: -6px !important; margin-top: -6px !important; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
 
         /* ==========================================================================
-           POPUP AUDITORIA (GLASS PANEL ESTÉTICA PLATINIUM)
+           POPUP AUDITORIA
            ========================================================================== */
         .audit-popup-wrapper .leaflet-popup-content-wrapper { background: var(--panel-bg); backdrop-filter: blur(16px); border: 1px solid var(--cyan-neon); color: var(--text-main); box-shadow: var(--shadow-heavy); border-radius: 12px; }
         .audit-popup-wrapper .leaflet-popup-tip { background: var(--panel-bg); border: 1px solid var(--cyan-neon); border-top: none; border-left: none; }
@@ -349,10 +337,6 @@
             </svg> GENERAR REPORTE
         </button>
         
-        <button class="btn tool-btn" id="btn-cargar-raw" title="Cargar RAW desde GitHub" onclick="cargarDatosNube()" style="display:none; width: auto; padding: 0 20px; font-size: 12px; font-weight: 900; color: white; background: #8e44ad;">
-            <i class="fas fa-download" style="margin-right: 8px;"></i> CARGAR RAW (NUBE)
-        </button>
-
         <button class="btn tool-btn" id="btn-save-server" title="Guardar Sincronización en Nube" onclick="guardarEnServidor()" style="width: auto; padding: 0 20px; font-size: 12px; font-weight: 900; color: white; background: var(--color-vigente);">
             <i class="fas fa-cloud-upload-alt" style="margin-right: 8px;"></i> GUARDAR NUBE
         </button>
@@ -680,7 +664,7 @@
     }
 
     /* ==========================================================================
-       MAPEO DE CSV (PANEL DE SUPER ADMIN) - LOGICA RAW
+       MAPEO DE CSV (PANEL DE SUPER ADMIN) - LÓGICA RAW COMPLETA
        ========================================================================== */
     let csvDataTemp = null;
     let csvHeadersTemp = [];
@@ -698,15 +682,23 @@
             const response = await fetch(url);
             if(!response.ok) throw new Error("Error al descargar el archivo CSV. Verifique que la URL sea pública y permita CORS.");
             
-            const arrayBuffer = await response.arrayBuffer();
-            const data = new Uint8Array(arrayBuffer);
-            const workbook = XLSX.read(data, {type: 'array', codepage: 65001});
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            csvDataTemp = XLSX.utils.sheet_to_json(worksheet);
+            const txt = await response.text();
             
-            if (csvDataTemp.length > 0) {
-                csvHeadersTemp = Object.keys(csvDataTemp[0]);
+            // Lógica exacta de análisis RAW de la función "analizarCabecerasCSV"
+            const rows = txt.split('\n').map(l => l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').trim()));
+            
+            if (rows.length > 1) {
+                csvHeadersTemp = rows[0];
+                
+                // Mapear todas las filas a objetos con TODAS las cabeceras
+                csvDataTemp = rows.slice(1).filter(r => r.length > 0 && r.some(c => c !== "")).map(rowArr => {
+                    let obj = {};
+                    csvHeadersTemp.forEach((head, i) => {
+                        obj[head] = rowArr[i] !== undefined ? rowArr[i] : "";
+                    });
+                    return obj;
+                });
+                
                 mostrarPanelMapeoCsv();
             } else {
                 alert("El archivo CSV está vacío o no tiene el formato correcto.");
@@ -772,7 +764,7 @@
         STORE[idSector] = {
             nombreSector: nombreSector,
             visible: true,
-            isMaster: true, // Capa maestra protegida (Solo SuperAdmin la crea)
+            isMaster: true, // Capa maestra protegida (Solo SuperAdmin puede borrarla/editarla libremente)
             isExpanded: true,
             visibilidadPorEstatus: {},
             coloresPorEstatus: {},
@@ -824,7 +816,7 @@
                     "Link Fotografía": fotoUrl
                 };
 
-                // Añadir TODAS las demás columnas del CSV
+                // Añadir TODAS las demás columnas del CSV sin perder nada
                 for(let k in row) {
                     if(k !== latCol && k !== lngCol && k !== nameCol && k !== statusCol && k !== fotoCol) {
                         datosGenerales[k] = row[k];
@@ -1248,6 +1240,7 @@
 
     /* ==========================================================================
        FASE 2: EL MOTOR STATE-DRIVEN (INDEPENDENCIA ABSOLUTA DE CAPAS)
+       RESTAURADO CON LA INTERFAZ EXACTA DE LA IMAGEN
        ========================================================================== */
     function actualizarUIYMapa() {
         const contenedor = document.getElementById('arbol-datos');
@@ -1350,38 +1343,41 @@
                 htmlSector += `
                 <div class="status-group">
                     <div class="status-header">
-                        <i class="fas ${estatusVisible ? 'fa-eye' : 'fa-eye-slash'}" 
-                           title="Mostrar/Ocultar Categoría" 
-                           style="cursor: pointer; width: 16px; text-align: center; color: ${estatusVisible ? 'white' : '#6e7681'}; flex-shrink: 0;"
-                           onclick="event.stopPropagation(); toggleVisibilidadEstatus('${idSector}', '${estatus}', ${!estatusVisible})"></i>
-                        
-                        <input type="color" class="status-color-square" title="Color de Categoría" value="${colorActual}"
-                               onclick="event.stopPropagation();"
-                               onchange="cambiarColorEstatusSector('${idSector}', '${estatus}', this.value)" 
-                               ${(sectorData.isMaster && CURRENT_ROLE !== 'SUPERADMIN') ? 'disabled' : ''}>
-                        
-                        <div class="status-row-label" onclick="event.stopPropagation(); document.getElementById('${idAcordeon}').style.display = document.getElementById('${idAcordeon}').style.display === 'none' ? 'block' : 'none'" style="cursor: pointer;">
-                            ${estatus}
+                        <div class="status-info" style="display:flex; align-items:center; gap:8px;">
+                            
+                            <i class="fas ${estatusVisible ? 'fa-eye' : 'fa-eye-slash'}" 
+                               title="Mostrar/Ocultar Categoría" 
+                               style="cursor: pointer; width: 16px; text-align: center; color: ${estatusVisible ? 'white' : '#6e7681'}; margin-right: 5px;"
+                               onclick="event.stopPropagation(); toggleVisibilidadEstatus('${idSector}', '${estatus}', ${!estatusVisible})"></i>
+                            
+                            <input type="color" title="Color de Categoría" value="${colorActual}"
+                                   onclick="event.stopPropagation();"
+                                   onchange="cambiarColorEstatusSector('${idSector}', '${estatus}', this.value)" 
+                                   ${(sectorData.isMaster && CURRENT_ROLE !== 'SUPERADMIN') ? 'disabled' : ''}>
+                            
+                            <div class="status-row-label" onclick="document.getElementById('${idAcordeon}').style.display = document.getElementById('${idAcordeon}').style.display === 'none' ? 'block' : 'none'" style="cursor: pointer; padding: 2px 0; flex:1;">
+                                ${estatus}
+                            </div>
                         </div>
-                        
-                        <div class="status-count">${gruposPorEstatus[estatus].conteo}</div>
+                        <span class="status-count">${gruposPorEstatus[estatus].conteo}</span>
                     </div>
                     <div class="local-list" id="${idAcordeon}" style="display: ${textoFiltroGlobal !== '' ? 'block' : 'none'};">`;
 
                 gruposPorEstatus[estatus].lista.forEach(local => {
                     htmlSector += `
                         <div class="local-row" onclick="abrirPopupDinamico('${idSector}', '${local.idFisico}', true)">
-                            <div style="flex:1; display:flex; align-items:center; gap:8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <div style="flex:1; display:flex; align-items:center; gap:8px;">
                                 <i class="fas ${local.visibleIndividual ? 'fa-eye' : 'fa-eye-slash'}" 
                                    title="Ocultar individualmente" 
-                                   style="cursor: pointer; width: 16px; text-align: center; color: ${local.visibleIndividual ? '#a5b0bf' : '#6e7681'}; flex-shrink: 0;"
+                                   style="cursor: pointer; width: 16px; text-align: center; color: ${local.visibleIndividual ? '#a5b0bf' : '#6e7681'};"
                                    onclick="event.stopPropagation(); toggleVisibilidadIndividual('${idSector}', '${local.idFisico}', ${!local.visibleIndividual})"></i>
-                                       
-                                <span title="${local.datosGenerales["Contribuyente"] || 'SIN NOMBRE'}">${local.datosGenerales["Contribuyente"] || 'SIN NOMBRE'}</span>
+                                   
+                                <i class="fas fa-caret-right" style="opacity:0.5"></i> 
+                                ${local.datosGenerales["Contribuyente"] || 'SIN NOMBRE'}
                             </div>
                             <div style="display:flex; align-items:center; gap:12px; padding-left:10px;">
                             ${(!sectorData.isMaster || CURRENT_ROLE === 'SUPERADMIN') ? `
-                                <i class="fas fa-trash sector-trash" title="Borrar este registro" onclick="event.stopPropagation(); eliminarDelClon('${idSector}', '${local.idFisico}')"></i>
+                                <i class="fas fa-trash sector-trash" style="font-size:11px;" title="Borrar Registro" onclick="event.stopPropagation(); eliminarDelClon('${idSector}', '${local.idFisico}')"></i>
                             ` : `<i class="fas fa-lock" style="font-size:11px; color:#6e7681;" title="Registro Protegido"></i>`}
                             </div>
                         </div>`;
@@ -2072,11 +2068,11 @@
             STORE[idSector] = {
                 nombreSector: sec.nombreSector,
                 visible: sec.visible !== false,
-                isMaster: sec.isMaster !== false, // Protect original layers by default
+                isMaster: sec.isMaster !== false, 
                 visibilidadPorEstatus: sec.visibilidadPorEstatus || {},
                 coloresPorEstatus: sec.coloresPorEstatus || {},
                 colorPrincipal: sec.colorPrincipal || '#00f2ff',
-                isExpanded: true, // Forzamos isExpanded=true para la carga inicial
+                isExpanded: true, 
                 registros: []
             };
 
