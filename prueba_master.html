@@ -3,8 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- 1. IDENTIDAD CORPORATIVA: Cambio de Title -->
     <title>SISTEMA DE CONTROL FISCAL - HACIENDA MUNICIPAL</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -12,8 +10,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
     
-    <!-- LIBRERÍA SWEETALERT2 PARA ALERTAS -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     
     <style>
         /* ==========================================================================
@@ -33,237 +34,68 @@
             --shadow-heavy: 0 12px 48px rgba(0,0,0,0.7);
         }
 
-        * { 
-            box-sizing: border-box; 
-        }
+        * { box-sizing: border-box; }
         
         body, html { 
-            margin: 0; 
-            padding: 0; 
-            height: 100%; 
-            font-family: 'Inter', sans-serif; 
-            background: var(--bg-dark); 
-            color: var(--text-main); 
-            overflow: hidden; 
+            margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; 
+            background: var(--bg-dark); color: var(--text-main); overflow: hidden; 
         }
         
-        #map { 
-            position: absolute; 
-            top: 0; 
-            bottom: 0; 
-            left: 0; 
-            right: 0; 
-            z-index: 1; 
-        }
+        #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; z-index: 1; }
 
-        /* ==========================================================================
-           2. COMPONENTES DE INTERFAZ (UI)
-           ========================================================================== */
-        .ui-layer { 
-            position: absolute; 
-            z-index: 1000; 
-            pointer-events: auto; 
-        }
+        .ui-layer { position: absolute; z-index: 1000; pointer-events: auto; }
         
         .glass-panel { 
-            background: var(--panel-bg); 
-            backdrop-filter: blur(16px); 
-            border: 1px solid var(--border-color); 
-            border-radius: 12px; 
-            box-shadow: var(--shadow-heavy); 
+            background: var(--panel-bg); backdrop-filter: blur(16px); 
+            border: 1px solid var(--border-color); border-radius: 12px; box-shadow: var(--shadow-heavy); 
         }
         
         .btn { 
-            border: none; 
-            font-family: 'Inter', sans-serif; 
-            font-weight: 900; 
-            cursor: pointer; 
-            transition: 0.2s; 
-            text-transform: uppercase; 
-            letter-spacing: 0.5px; 
+            border: none; font-family: 'Inter', sans-serif; font-weight: 900; 
+            cursor: pointer; transition: 0.2s; text-transform: uppercase; letter-spacing: 0.5px; 
         }
-        
-        .btn:hover { 
-            filter: brightness(1.2); 
-            transform: translateY(-1px); 
-        }
+        .btn:hover { filter: brightness(1.2); transform: translateY(-1px); }
 
-        /* BARRA SUPERIOR */
-        .top-nav { 
-            top: 15px; 
-            left: 15px; 
-            right: 15px; 
-            height: 64px; 
-            display: flex; 
-            align-items: center; 
-            padding: 0 20px; 
-            gap: 15px; 
-            justify-content: space-between; 
+        .leaflet-top.leaflet-right { margin-top: 100px !important; z-index: 10001 !important; margin-right: 15px !important; }
+
+        .top-nav { top: 15px; left: 15px; right: 15px; height: 64px; display: flex; align-items: center; padding: 0 20px; gap: 15px; justify-content: space-between; }
+        
+        .search-container { flex: 0 1 500px; display: flex; align-items: center; gap: 12px; background: rgba(0,0,0,0.4); padding: 12px 18px; border-radius: 8px; border: 1px solid var(--border-color); transition: 0.3s; }
+        .search-container:focus-within { border-color: var(--cyan-neon); box-shadow: 0 0 15px rgba(0, 242, 255, 0.2); }
+        .search-container input { background: transparent; border: none; color: white; outline: none; width: 100%; font-size: 14px; font-weight: 600; }
+        
+        .tools-container { display: flex; gap: 10px; align-items: center; }
+        .tool-btn { width: 44px; height: 44px; border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 18px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); color: var(--text-main); cursor: pointer; transition: 0.2s; }
+        .tool-btn:hover, .tool-btn.active { border-color: var(--cyan-neon); color: var(--cyan-neon); background: rgba(0, 242, 255, 0.1); }
+
+        @media print {
+            .ui-layer, .leaflet-control-container, .modal-overlay, #mira-captura { display: none !important; }
+            #map { position: absolute; width: 100%; height: 100vh; top: 0; left: 0; z-index: 9999; }
+            body, html { overflow: visible; background: white; }
         }
         
-        .search-container { 
-            flex: 0 1 500px; 
-            display: flex; 
-            align-items: center; 
-            gap: 12px; 
-            background: rgba(0,0,0,0.4); 
-            padding: 12px 18px; 
-            border-radius: 8px; 
-            border: 1px solid var(--border-color); 
-            transition: 0.3s; 
-        }
-        
-        .search-container:focus-within { 
-            border-color: var(--cyan-neon); 
-            box-shadow: 0 0 15px rgba(0, 242, 255, 0.2); 
-        }
-        
-        .search-container input { 
-            background: transparent; 
-            border: none; 
-            color: white; 
-            outline: none; 
-            width: 100%; 
-            font-size: 14px; 
-            font-weight: 600; 
-        }
-        
-        .tools-container { 
-            display: flex; 
-            gap: 10px; 
-            align-items: center; 
-        }
-        
-        .tool-btn { 
-            width: 44px; 
-            height: 44px; 
-            border-radius: 8px; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            font-size: 18px; 
-            background: rgba(0,0,0,0.4); 
-            border: 1px solid var(--border-color); 
-            color: var(--text-main); 
-            cursor: pointer; 
-            transition: 0.2s; 
-        }
-        
-        .tool-btn:hover, .tool-btn.active { 
-            border-color: var(--cyan-neon); 
-            color: var(--cyan-neon); 
-            background: rgba(0, 242, 255, 0.1); 
-        }
-        
-        /* TOGGLE MODO LECTURA */
-        .toggle-container { 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-            font-size: 11px; 
-            font-weight: 800; 
-            color: #a5b0bf; 
-            background: rgba(0,0,0,0.3); 
-            padding: 8px 15px; 
-            border-radius: 20px; 
-            border: 1px solid var(--border-color); 
-        }
-        
-        .switch { 
-            position: relative; 
-            display: inline-block; 
-            width: 34px; 
-            height: 18px; 
-        }
-        
-        .switch input { 
-            opacity: 0; 
-            width: 0; 
-            height: 0; 
-        }
-        
-        .slider { 
-            position: absolute; 
-            cursor: pointer; 
-            top: 0; 
-            left: 0; 
-            right: 0; 
-            bottom: 0; 
-            background-color: #da3633; 
-            transition: .4s; 
-            border-radius: 34px; 
-        }
-        
-        .slider:before { 
-            position: absolute; 
-            content: ""; 
-            height: 12px; 
-            width: 12px; 
-            left: 3px; 
-            bottom: 3px; 
-            background-color: white; 
-            transition: .4s; 
-            border-radius: 50%; 
-        }
-        
-        input:checked + .slider { 
-            background-color: var(--color-vigente); 
-        }
-        
-        input:checked + .slider:before { 
-            transform: translateX(16px); 
-        }
+        .toggle-container { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 800; color: #a5b0bf; background: rgba(0,0,0,0.3); padding: 8px 15px; border-radius: 20px; border: 1px solid var(--border-color); }
+        .switch { position: relative; display: inline-block; width: 34px; height: 18px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #da3633; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--color-vigente); }
+        input:checked + .slider:before { transform: translateX(16px); }
 
         /* SIDEBAR (PANEL MAESTRO) */
-        #sidebar { 
-            top: 95px; 
-            left: 15px; 
-            bottom: 20px; 
-            width: 420px; 
-            display: flex; 
-            flex-direction: column; 
-            border-top: 5px solid var(--color-temporal); 
-        }
+        #sidebar { top: 95px; left: 15px; bottom: 20px; width: 420px; display: flex; flex-direction: column; overflow: hidden; }
         
-        .sidebar-header { 
-            padding: 25px 20px; 
-            border-bottom: 1px solid var(--border-color); 
-            background: rgba(255,255,255,0.02); 
-        }
+        .sidebar-header { padding: 25px 20px; border-bottom: 1px solid var(--border-color); background: rgba(255,255,255,0.02); }
+        .sidebar-header h1 { margin: 0; font-size: 17px; font-weight: 900; letter-spacing: 1px; color: var(--color-temporal); }
+        .sidebar-header p { margin: 6px 0 0; font-size: 11px; color: var(--cyan-neon); font-weight: 800; letter-spacing: 0.5px; }
         
-        /* IDENTIDAD CORPORATIVA: Sidebar Header */
-        .sidebar-header h1 { 
-            margin: 0; 
-            font-size: 17px; 
-            font-weight: 900; 
-            letter-spacing: 1px; 
-            color: var(--color-temporal); 
-        }
-        
-        .sidebar-header p { 
-            margin: 6px 0 0; 
-            font-size: 11px; 
-            color: var(--cyan-neon); 
-            font-weight: 800; 
-            letter-spacing: 0.5px; 
-        }
-        
-        .layers-container { 
-            flex: 1; 
-            overflow-y: auto; 
-            padding: 15px; 
-        }
-        
-        .layers-container::-webkit-scrollbar { 
-            width: 6px; 
-        }
-        
-        .layers-container::-webkit-scrollbar-thumb { 
-            background: var(--border-color); 
-            border-radius: 4px; 
-        }
+        .layers-container { flex: 1; overflow-y: auto; padding: 15px; }
+        .layers-container::-webkit-scrollbar { width: 6px; }
+        .layers-container::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
 
-        /* TARJETAS DE SECTOR Y CONTROLES DUALES */
+        /* ==========================================================================
+           RESTAURACIÓN DE CSS EXACTA DEL MASTER FALTANTE PARA EL PANEL
+           ========================================================================== */
         .sector-card { 
             margin-bottom: 12px; 
             border: 1px solid var(--border-color); 
@@ -297,7 +129,6 @@
             gap: 10px; 
         }
         
-        /* Controles Visuales del Sector */
         .sector-controls { 
             display: flex; 
             align-items: center; 
@@ -375,7 +206,6 @@
             text-shadow: 0 0 10px var(--color-vencida); 
         }
 
-        /* ACORDEÓN DE ESTATUS Y LISTA */
         .status-group { 
             border-top: 1px solid var(--border-color); 
             background: rgba(255,255,255,0.01); 
@@ -437,320 +267,149 @@
             background: rgba(255,255,255,0.08); 
         }
 
-        .sidebar-footer { 
-            padding: 20px; 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 12px; 
-            border-top: 1px solid var(--border-color); 
-            background: rgba(0,0,0,0.2); 
-        }
-        
-        .btn-outline { 
-            background: transparent; 
-            border: 1px solid var(--border-color); 
-            color: white; 
-            padding: 14px; 
-            border-radius: 8px; 
-            font-size: 11px; 
-        }
-        
-        .btn-outline:hover { 
-            border-color: white; 
-            background: rgba(255,255,255,0.05); 
-        }
-        
-        .btn-solid-yellow { 
-            background: var(--color-temporal); 
-            color: #000; 
-            padding: 14px; 
-            border-radius: 8px; 
-            font-size: 11px; 
-        }
+        /* FOOTER SIDEBAR */
+        .sidebar-footer { padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid var(--border-color); background: rgba(0,0,0,0.2); }
+        .btn-outline { background: transparent; border: 1px solid var(--border-color); color: white; padding: 14px; border-radius: 8px; font-size: 11px; }
+        .btn-outline:hover { border-color: white; background: rgba(255,255,255,0.05); }
+        .btn-solid-yellow { background: var(--color-temporal); color: #000; padding: 14px; border-radius: 8px; font-size: 11px; }
+        .btn-solid-green { background: var(--color-vigente); color: #fff; padding: 14px; border-radius: 8px; font-size: 11px; }
 
         /* ==========================================================================
            3. POPUPS INMORTALES (VISTA LECTURA Y EDICIÓN DOBLE CONTENEDOR)
            ========================================================================== */
-        .leaflet-popup-content-wrapper { 
-            padding: 0; 
-            overflow: hidden; 
-            border-radius: 12px; 
-            background: #fff; 
-            width: 340px; 
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5); 
-        }
+        .leaflet-popup-content-wrapper { padding: 0; overflow: hidden; border-radius: 12px; background: #fff; width: 340px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .leaflet-popup-tip { background: #fff; }
+        .leaflet-popup-content { margin: 0; } 
         
-        .leaflet-popup-tip { 
-            background: #fff; 
-        }
+        .pop-cover { width: 100%; height: 160px; background: #111; position: relative; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .pop-cover img { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; }
+        .pop-badge { position: absolute; top: 15px; left: 15px; padding: 6px 14px; border-radius: 20px; font-size: 10px; font-weight: 900; color: white; text-transform: uppercase; box-shadow: 0 4px 10px rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.5); }
+        .pop-content { padding: 20px; color: #111; max-height: 400px; overflow-y: auto; }
         
-        .leaflet-popup-content { 
-            margin: 0; 
-        } 
-        
-        .pop-cover { 
-            width: 100%; 
-            height: 160px; 
-            background: #111; 
-            position: relative; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            overflow: hidden; 
-        }
-        
-        .pop-cover img { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-            opacity: 0.9; 
-        }
-        
-        .pop-badge { 
-            position: absolute; 
-            top: 15px; 
-            left: 15px; 
-            padding: 6px 14px; 
-            border-radius: 20px; 
-            font-size: 10px; 
-            font-weight: 900; 
-            color: white; 
-            text-transform: uppercase; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4); 
-            border: 2px solid rgba(255,255,255,0.5); 
-        }
-        
-        .pop-content { 
-            padding: 20px; 
-            color: #111; 
-            max-height: 400px; 
-            overflow-y: auto; 
-        }
-        
-        /* Estilos Vista Lectura Profesional */
-        .read-field { 
-            margin-bottom: 12px; 
-            border-bottom: 1px solid #eaeaea; 
-            padding-bottom: 8px; 
-        }
-        
-        .read-label { 
-            display: block; 
-            font-size: 9px; 
-            font-weight: 900; 
-            color: #888; 
-            text-transform: uppercase; 
-            margin-bottom: 4px; 
-        }
-        
-        .read-value { 
-            font-size: 13px; 
-            font-weight: 700; 
-            color: #111; 
-            word-break: break-word; 
-        }
+        .read-field { margin-bottom: 12px; border-bottom: 1px solid #eaeaea; padding-bottom: 8px; }
+        .read-label { display: block; font-size: 9px; font-weight: 900; color: #888; text-transform: uppercase; margin-bottom: 4px; }
+        .read-value { font-size: 13px; font-weight: 700; color: #111; word-break: break-word; }
 
-        /* Estilos Vista Edición */
-        .form-group { 
-            margin-bottom: 12px; 
-            border-bottom: 1px solid #eaeaea; 
-            padding-bottom: 6px; 
-            position: relative; 
-        }
-        
-        .form-label { 
-            display: block; 
-            font-size: 9px; 
-            font-weight: 900; 
-            color: #888; 
-            text-transform: uppercase; 
-            margin-bottom: 4px; 
-        }
-        
-        .form-input { 
-            width: 85%; 
-            border: none; 
-            font-family: 'Inter', sans-serif; 
-            font-size: 13px; 
-            font-weight: 700; 
-            color: #000; 
-            background: transparent; 
-            outline: none; 
-        }
-        
-        .form-input:focus { 
-            color: var(--color-vigente); 
-        }
-        
-        /* PRIVACIDAD DE URls */
-        .input-oculto { 
-            opacity: 0.6; 
-            font-family: monospace; 
-            letter-spacing: 1px; 
-        }
+        .form-group { margin-bottom: 12px; border-bottom: 1px solid #eaeaea; padding-bottom: 6px; position: relative; }
+        .form-label { display: block; font-size: 9px; font-weight: 900; color: #888; text-transform: uppercase; margin-bottom: 4px; }
+        .form-input { width: 85%; border: none; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700; color: #000; background: transparent; outline: none; }
+        .form-input:focus { color: var(--color-vigente); }
+        .input-oculto { opacity: 0.6; font-family: monospace; letter-spacing: 1px; }
 
-        .form-select { 
-            width: 100%; 
-            padding: 8px; 
-            font-family: 'Inter', sans-serif; 
-            font-size: 12px; 
-            font-weight: 800; 
-            border: 1px solid #ccc; 
-            border-radius: 6px; 
-            margin-top: 5px; 
-            outline: none; 
-            cursor: pointer; 
-        }
-        
-        .eye-btn { 
-            position: absolute; 
-            right: 5px; 
-            top: 20px; 
-            color: #ccc; 
-            cursor: pointer; 
-            font-size: 14px; 
-            transition: 0.2s; 
-            z-index: 10; 
-            padding: 5px; 
-        }
-        
-        .eye-btn:hover, .eye-btn.is-hidden { 
-            color: var(--color-vencida); 
-        }
+        .form-select { width: 100%; padding: 8px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; border: 1px solid #ccc; border-radius: 6px; margin-top: 5px; outline: none; cursor: pointer; }
+        .eye-btn { position: absolute; right: 5px; top: 20px; color: #ccc; cursor: pointer; font-size: 14px; transition: 0.2s; z-index: 10; padding: 5px; }
+        .eye-btn:hover, .eye-btn.is-hidden { color: var(--color-vencida); }
 
-        .btn-popup-action { 
-            width: 100%; 
-            padding: 14px; 
-            font-size: 12px; 
-            border-radius: 8px; 
-            margin-top: 10px; 
-            font-weight: 900; 
-            cursor: pointer; 
-            border: none; 
-            text-transform: uppercase; 
-            color: white; 
-            transition: 0.2s; 
-        }
-        
-        .btn-popup-action:hover { 
-            filter: brightness(1.1); 
-        }
-        
-        .btn-save { 
-            background: var(--color-vigente); 
-            box-shadow: 0 4px 15px rgba(35, 134, 54, 0.3); 
-        }
-        
-        .btn-edit { 
-            background: var(--cyan-neon); 
-            color: #000; 
-            box-shadow: 0 4px 15px rgba(0, 242, 255, 0.3); 
-        }
-        
-        .btn-del { 
-            background: var(--color-vencida); 
-            margin-top: 15px; 
-        }
+        .btn-popup-action { width: 100%; padding: 14px; font-size: 12px; border-radius: 8px; margin-top: 10px; font-weight: 900; cursor: pointer; border: none; text-transform: uppercase; color: white; transition: 0.2s; }
+        .btn-popup-action:hover { filter: brightness(1.1); }
+        .btn-save { background: var(--color-vigente); box-shadow: 0 4px 15px rgba(35, 134, 54, 0.3); }
+        .btn-edit { background: var(--cyan-neon); color: #000; box-shadow: 0 4px 15px rgba(0, 242, 255, 0.3); }
+        .btn-del { background: var(--color-vencida); margin-top: 15px; }
 
-        /* MODO LECTURA CSS MAESTRO */
         .readonly-mode .form-input { pointer-events: none; color: #555; }
         .readonly-mode .form-select { pointer-events: none; background: #eee; }
         .readonly-mode .eye-btn { display: none; }
         .readonly-mode input[type="color"] { pointer-events: none; opacity: 0.6; }
 
-        /* ==========================================================================
-           5. ESTÉTICA PROFESIONAL DE VÉRTICES (PUNTOS BLANCOS EN EDICIÓN)
-           ========================================================================== */
-        .leaflet-editing-icon {
-            border-radius: 50% !important;
-            border: 2px solid var(--border-color) !important;
-            background-color: #fff !important;
-            width: 12px !important;
-            height: 12px !important;
-            margin-left: -6px !important;
-            margin-top: -6px !important;
-            box-shadow: 0 0 5px rgba(0,0,0,0.5);
-        }
+        .leaflet-editing-icon { border-radius: 50% !important; border: 2px solid var(--border-color) !important; background-color: #fff !important; width: 12px !important; height: 12px !important; margin-left: -6px !important; margin-top: -6px !important; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
 
         /* ==========================================================================
-           6. MODALES Y REPORTES
+           POPUP AUDITORIA (GLASS PANEL ESTÉTICA PLATINIUM)
            ========================================================================== */
-        .audit-report { 
-            background: #f8f9fa; 
-            padding: 20px; 
-        }
-        
-        .audit-title { 
-            margin: 0 0 15px; 
-            font-size: 14px; 
-            font-weight: 900; 
-            color: #111; 
-            border-bottom: 2px solid #eee; 
-            padding-bottom: 10px; 
-        }
-        
-        .audit-stat { 
-            display: flex; 
-            justify-content: space-between; 
-            font-size: 12px; 
-            font-weight: 800; 
-            margin-bottom: 8px; 
-            padding: 4px 0; 
-        }
+        .audit-popup-wrapper .leaflet-popup-content-wrapper { background: var(--panel-bg); backdrop-filter: blur(16px); border: 1px solid var(--cyan-neon); color: var(--text-main); box-shadow: var(--shadow-heavy); border-radius: 12px; }
+        .audit-popup-wrapper .leaflet-popup-tip { background: var(--panel-bg); border: 1px solid var(--cyan-neon); border-top: none; border-left: none; }
+        .audit-report.glass-panel { font-family: 'Inter', sans-serif; padding: 20px 22px; margin: 0; text-align: left; background: transparent; border: none; box-shadow: none; }
+        .audit-title { margin: 0 0 14px; font-size: 12px; font-weight: 900; color: var(--color-temporal); letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 12px; }
+        .audit-resumen-cuerpo { margin: 0; color: var(--text-main); font-size: 13px; font-weight: 600; line-height: 1.55; white-space: normal; }
+        .audit-total-inline { color: var(--cyan-neon); font-weight: 800; white-space: nowrap; }
 
-        .modal-overlay { 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            right: 0; 
-            bottom: 0; 
-            background: rgba(0,0,0,0.8); 
-            z-index: 2000; 
-            display: none; 
-            justify-content: center; 
-            align-items: center; 
-            backdrop-filter: blur(5px); 
-        }
-        
-        .modal-box { 
-            width: 480px; 
-            padding: 30px; 
-            max-height: 90vh; 
-            overflow-y: auto; 
-        }
-        
-        .modal-title { 
-            margin: 0 0 20px; 
-            font-size: 18px; 
-            color: var(--color-temporal); 
-            text-transform: uppercase; 
-        }
-        
-        .modal-input { 
-            width: 100%; 
-            padding: 14px; 
-            background: rgba(0,0,0,0.5); 
-            border: 1px solid var(--border-color); 
-            color: white; 
-            border-radius: 8px; 
-            margin-bottom: 15px; 
-            font-family: 'Inter'; 
-        }
-        
-        .modal-select { 
-            width: 100%; 
-            padding: 12px; 
-            background: #111; 
-            color: white; 
-            border: 1px solid var(--border-color); 
-            border-radius: 8px; 
-            margin-bottom: 15px; 
-            font-family: 'Inter'; 
-            font-size: 12px; 
-        }
+        /* ==========================================================================
+           MODALES GENERALES
+           ========================================================================== */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-box { width: 480px; padding: 30px; max-height: 90vh; overflow-y: auto; }
+        .modal-title { margin: 0 0 20px; font-size: 18px; color: var(--color-temporal); text-transform: uppercase; }
+        .modal-input { width: 100%; padding: 14px; background: rgba(0,0,0,0.5); border: 1px solid var(--border-color); color: white; border-radius: 8px; margin-bottom: 15px; font-family: 'Inter'; font-weight: bold; }
+        .modal-select { width: 100%; padding: 12px; background: #111; color: white; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 15px; font-family: 'Inter'; font-size: 12px; }
+
+        .notif-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(18, 22, 29, 0.95); backdrop-filter: blur(10px); border: 2px solid var(--cyan-neon); color: white; padding: 30px 40px; border-radius: 12px; font-size: 16px; font-weight: 800; z-index: 999999; box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 20px rgba(0, 242, 255, 0.4); text-align: center; display: none; flex-direction: column; gap: 15px; }
+
+        .footer-protegido { position: fixed; bottom: 5px; right: 15px; font-size: 9px; color: rgba(255,255,255,0.4); z-index: 9999; pointer-events: none; font-weight: 600; }
+
+        .license-alert { background: rgba(218, 54, 51, 0.2); border: 1px solid var(--color-vencida); color: white; padding: 10px; border-radius: 8px; font-size: 11px; margin-bottom: 15px; font-weight: 800; text-align: center; display: none; }
     </style>
 </head>
 <body>
+
+<div class="footer-protegido">© 2026 - Sistema Protegido - Alcaldía Bolivariana de Ayacucho</div>
+
+<div id="capture-modal" class="notif-modal">
+    <i class="fas fa-circle-notch fa-spin" style="font-size: 30px; color: var(--cyan-neon);"></i>
+    <span>🔄 ENCUADRANDO REPORTE...<br><small style="color: #a5b0bf; font-size: 12px;">Por favor, no mueva el mapa ni cierre esta ventana.</small></span>
+</div>
+
+<div id="success-modal" class="notif-modal" style="border-color: var(--color-vigente); box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 20px rgba(35, 134, 54, 0.4);">
+    <i class="fas fa-check-circle" style="font-size: 30px; color: var(--color-vigente);"></i>
+    <span>✅ Reporte Generado con Éxito.</span>
+</div>
+
+<!-- MODAL DE MAPEO CSV -->
+<div id="csv-mapping-modal" class="modal-overlay" style="z-index: 10001; display: none; background: rgba(7,9,13,0.85); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); align-items: center; justify-content: center;">
+    <div class="glass-panel modal-box" style="width: 550px; max-width: 95%; padding: 30px; text-align: left; box-sizing: border-box; max-height: 90vh; overflow-y: auto;">
+        <h2 style="color: var(--cyan-neon); margin-top: 0; font-size: 18px;"><i class="fas fa-project-diagram"></i> MAPEO DE COLUMNAS CSV</h2>
+        <p style="color: #a5b0bf; font-size: 12px; margin-bottom: 20px;">Vincule las columnas de su archivo CSV con los campos del sistema para poder mapear los puntos correctamente.</p>
+        
+        <div id="csv-mapping-fields" style="display: grid; gap: 15px;">
+            <!-- Los selects se generarán dinámicamente -->
+        </div>
+
+        <div style="margin-top: 25px; display: flex; gap: 10px;">
+            <button class="btn btn-outline" style="flex: 1; padding: 12px;" onclick="document.getElementById('csv-mapping-modal').style.display='none'">CANCELAR</button>
+            <button class="btn btn-save" style="flex: 2; padding: 12px;" onclick="confirmarMapeoCsv()">GENERAR MAPEO DE PUNTOS</button>
+        </div>
+    </div>
+</div>
+
+<!-- BANNER LICENCIA -->
+<div id="license-lock-overlay" class="modal-overlay" style="z-index: 10000; display: none; background: rgba(7,9,13,0.78); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); align-items: center; justify-content: center;">
+    <div class="glass-panel modal-box" style="width: 420px; max-width: 92%; padding: 32px 28px; text-align: center; box-sizing: border-box;">
+        <i class="fas fa-key" style="font-size: 44px; color: var(--color-temporal); margin-bottom: 16px;"></i>
+        <h1 id="lock-banner-heading" style="color: var(--color-temporal); font-weight: 900; margin: 0 0 12px 0; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase;">ACTIVACIÓN REQUERIDA</h1>
+        <p id="lock-banner-text" style="color: #a5b0bf; font-size: 12px; line-height: 1.55; margin: 0 0 22px 0;">Ingrese su clave de acceso institucional (SGF). Puede descargar respaldo Word o Excel antes de activar.</p>
+        <input type="password" id="lock-new-license" class="modal-input" placeholder="Clave de Acceso Institucional" style="margin-bottom: 12px;">
+        <button type="button" class="btn btn-save" style="width: 100%; padding: 14px; margin-bottom: 10px;" onclick="guardarLicenciaDesdeBloqueo()">ACTIVAR NUEVA LICENCIA</button>
+        <button type="button" class="btn btn-outline" style="width: 100%; padding: 12px; margin-bottom: 8px;" onclick="descargarRespaldoWord()"><i class="fas fa-file-word"></i> DESCARGAR RESPALDO (WORD)</button>
+    </div>
+</div>
+
+<!-- OVERLAY DE SEGURIDAD ACTIVA -->
+<div class="modal-overlay" id="login-overlay" style="display: flex; background: var(--bg-dark); z-index: 9999;">
+    <div class="glass-panel modal-box" style="text-align: center; width: 400px; padding: 40px;">
+        <div id="login-form-container">
+            <i class="fas fa-shield-alt" style="font-size: 40px; color: var(--cyan-neon); margin-bottom: 20px;"></i>
+            <h2 class="modal-title">ACCESO RESTRINGIDO</h2>
+            <p style="font-size: 11px; color: #a5b0bf; margin-bottom: 20px;">SISTEMA DE CONTROL FISCAL MUNICIPAL</p>
+            <input type="text" id="login-user" class="modal-input" placeholder="Usuario Sistema">
+            <label for="login-pass" style="color: white; font-size: 12px; font-weight: bold; display: block; text-align: left; margin-bottom: 5px;">Clave de Acceso Institucional</label>
+            <input type="password" id="login-pass" class="modal-input" placeholder="Clave del Sistema">
+            <p style="font-size: 10px; color: #fbbc04; margin-top: 0px; margin-bottom: 15px; text-align: left; font-weight: bold;">* Solicítela a su director o directora de Hacienda.</p>
+            <div id="login-error-msg" style="color: var(--color-vencida); font-size: 11px; font-weight: bold; margin-bottom: 15px; display: none;"></div>
+            <button class="btn btn-save" id="btn-autenticar" style="width: 100%; padding: 15px;" onclick="intentarLogin()">ACCEDER</button>
+            <div style="margin-top: 15px;">
+                <span id="btn-olvido" style="font-size: 11px; color: #a5b0bf; cursor: pointer; text-decoration: underline;" onclick="enviarCredenciales()">¿Olvidó sus datos?</span>
+            </div>
+        </div>
+        <div id="recovery-success-container" style="display: none;">
+            <i class="fas fa-envelope-circle-check" style="font-size: 50px; color: var(--color-vigente); margin-bottom: 20px;"></i>
+            <h2 class="modal-title" style="color: var(--color-vigente); font-size: 20px;">¡CORREO ENVIADO CON ÉXITO!</h2>
+            <p style="font-size: 12px; color: #f0f3f6; line-height: 1.6; margin-bottom: 30px;">
+                Se han enviado sus credenciales de seguridad al correo vinculado del Administrador de Hacienda.<br><br>
+                <span style="color: var(--color-temporal); font-weight: bold;">Revise su bandeja de entrada (y carpeta de Spam).</span>
+            </p>
+            <button class="btn btn-outline" style="width: 100%; padding: 15px;" onclick="volverAlLogin()">REGRESAR AL LOGIN</button>
+        </div>
+    </div>
+</div>
 
 <div id="map"></div>
 
@@ -775,29 +434,43 @@
         <button class="btn tool-btn" id="btn-draw-poly" title="Auditar Área" onclick="activarHerramienta('poligono')">
             <i class="fas fa-draw-polygon"></i>
         </button>
+
+        <button class="btn tool-btn" title="Generar Reporte Fotográfico" onclick="previsualizarCaptura()" style="width: auto; padding: 0 20px; font-size: 12px; font-weight: 900; color: white; background: #6e7681;">
+            <svg style="margin-right: 8px; width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
+                <circle cx="12" cy="13" r="3"></circle>
+            </svg> GENERAR REPORTE
+        </button>
         
-        <!-- BOTÓN GUARDAR NUBE (GITHUB API) -->
-        <button class="btn tool-btn" id="btn-save-server" title="Guardar Sincronización en Nube" onclick="guardarEnServidor()" style="width: auto; padding: 0 20px; font-size: 12px; font-weight: 900; color: white; background: var(--color-vigente);">
-            <i class="fas fa-cloud-upload-alt" style="margin-right: 8px;"></i> GUARDAR NUBE
+        <button class="btn tool-btn" id="btn-cargar-raw" title="Cargar RAW desde GitHub" onclick="cargarDatosNube()" style="display:none; width: auto; padding: 0 20px; font-size: 12px; font-weight: 900; color: white; background: #8e44ad;">
+            <i class="fas fa-download" style="margin-right: 8px;"></i> CARGAR RAW (NUBE)
         </button>
 
-        <button class="btn tool-btn" title="Descargar Respaldo JSON" onclick="exportarBaseDatos()" style="width: auto; padding: 0 20px; font-size: 12px; font-weight: 900; color: white;">
-            <i class="fas fa-download" style="margin-right: 8px;"></i> RESPALDO JSON
+        <button class="btn tool-btn" id="btn-save-server" title="Guardar Sincronización en Nube" onclick="guardarEnServidor()" style="width: auto; padding: 0 20px; font-size: 12px; font-weight: 900; color: white; background: var(--color-vigente);">
+            <i class="fas fa-cloud-upload-alt" style="margin-right: 8px;"></i> GUARDAR NUBE
         </button>
     </div>
 </nav>
 
 <aside id="sidebar" class="ui-layer glass-panel">
+    <div style="height: 5px; width: 100%; display: flex;">
+        <div style="flex: 1; background: #008000;"></div> 
+        <div style="flex: 1; background: #FF0000;"></div> 
+        <div style="flex: 1; background: #FFFF00;"></div> 
+    </div>
+
     <div class="sidebar-header">
-        <!-- IDENTIDAD CORPORATIVA: Sidebar Títulos -->
         <h1>SISTEMA DE CONTROL FISCAL</h1>
+        <div id="rol-indicador" style="font-size: 10px; color: #fbbc04; font-weight: 900; margin-top: 5px; margin-bottom: 8px; letter-spacing: 1px;"><i class="fas fa-user-shield"></i> ESPERANDO LOGIN...</div>
         <p id="indicador-capa-activa">HACIENDA MUNICIPAL - SELECCIONE CAPA</p>
     </div>
     
-    <div class="layers-container" id="arbol-datos">
-        </div>
+    <div id="license-warning-box" class="license-alert">
+        <i class="fas fa-exclamation-triangle"></i> ATENCIÓN: Su licencia vence en <span id="license-days-count">X</span> días.
+    </div>
+
+    <div class="layers-container" id="arbol-datos"></div>
     
-    <!-- MÓDULO DE CAMBIO DE CLAVE EN SIDEBAR -->
     <div style="padding: 15px; border-top: 1px solid var(--border-color); background: rgba(0,0,0,0.3);">
         <div style="font-size: 11px; font-weight: 800; color: var(--cyan-neon); margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between;" onclick="document.getElementById('ajustes-cuenta').style.display = document.getElementById('ajustes-cuenta').style.display === 'none' ? 'block' : 'none'">
             <span><i class="fas fa-cog"></i> AJUSTES DE CUENTA</span>
@@ -810,15 +483,31 @@
         </div>
     </div>
 
-    <!-- MÓDULO DE CONFIGURACIÓN DE SERVIDOR (NUEVO) -->
-    <div style="padding: 15px; border-top: 1px solid var(--border-color); background: rgba(0,0,0,0.3);">
-        <div style="font-size: 11px; font-weight: 800; color: var(--color-temporal); margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between;" onclick="toggleConfigServidor()">
-            <span><i class="fas fa-server"></i> CONFIG. DE SERVIDOR</span>
+    <div id="panel-superadmin" style="display:none; padding: 15px; border-top: 1px solid var(--border-color); background: rgba(0,0,0,0.3);">
+        <div style="font-size: 11px; font-weight: 800; color: #8e44ad; margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between;" onclick="toggleConfigServidor()">
+            <span><i class="fas fa-server"></i> LLAVE MAESTRA GITHUB (SUPER ADMIN)</span>
             <i class="fas fa-chevron-down"></i>
         </div>
         <div id="ajustes-servidor" style="display: none; padding-top: 5px;">
-            <input type="password" id="ajuste-repo-token" class="modal-input" style="padding: 8px; font-size: 11px; margin-bottom: 8px;" placeholder="Token GitHub (ghp_...)">
-            <button class="btn btn-outline" style="width: 100%; padding: 8px; font-size: 10px;" onclick="guardarConfiguracionServidor()">GUARDAR TOKEN LOCAL</button>
+            <input type="password" id="ajuste-repo-token" class="modal-input" style="padding: 8px; font-size: 11px; margin-bottom: 8px;" placeholder="Token de GitHub (ghp_...)">
+            
+            <label style="color: white; font-size: 10px; font-weight: bold; display: block; margin-bottom: 4px; margin-top: 8px;">URL DEL CSV (DATOS EXTERNOS)</label>
+            <input type="text" id="input-csv-url" class="modal-input" style="padding: 8px; font-size: 11px; margin-bottom: 8px;" placeholder="https://ejemplo.com/datos.csv">
+            <button class="btn btn-outline" style="width: 100%; padding: 8px; font-size: 10px; margin-bottom: 12px;" onclick="cargarCsvDesdeUrl()"><i class="fas fa-file-csv"></i> CARGAR Y GUARDAR CSV</button>
+
+            <button class="btn btn-outline" style="width: 100%; padding: 8px; font-size: 10px;" onclick="verificarYGuardarTokenMaestro()">ENCRIPTAR Y GUARDAR TOKEN</button>
+        </div>
+    </div>
+
+    <div id="panel-admin-licencia" style="display:none; padding: 15px; border-top: 1px solid var(--border-color); background: rgba(0,0,0,0.3);">
+        <div style="font-size: 11px; font-weight: 800; color: var(--color-temporal); margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between;" onclick="toggleLicenciaPanel()">
+            <span><i class="fas fa-key"></i> LICENCIA SGF</span>
+            <i class="fas fa-chevron-down"></i>
+        </div>
+        <div id="ajustes-licencia" style="display: none; padding-top: 5px;">
+            <div style="font-size: 10px; color: #a5b0bf; margin-bottom: 8px;">Días restantes de servicio: <strong id="lbl-dias-lic" style="color:white;">0</strong></div>
+            <input type="password" id="input-update-license" class="modal-input" style="padding: 8px; font-size: 11px; margin-bottom: 8px;" placeholder="Clave de Acceso Institucional">
+            <button class="btn btn-solid-green" style="width: 100%; padding: 8px; font-size: 10px;" onclick="actualizarLicenciaInterna()">ACTUALIZAR LICENCIA</button>
         </div>
     </div>
 
@@ -829,15 +518,19 @@
         <button class="btn btn-solid-yellow" onclick="abrirModalImportacion()">
             <i class="fas fa-database"></i> IMPORTAR RAW
         </button>
+        <button class="btn btn-outline" onclick="cerrarSesionSeguridad()" style="grid-column: span 2; border-color: var(--color-vencida); color: var(--color-vencida); margin-top: 5px;">
+            <i class="fas fa-sign-out-alt"></i> CERRAR SESIÓN
+        </button>
     </div>
 </aside>
 
+<!-- MODAL DE IMPORTACIÓN RAW CSV (RESTAURADO) -->
 <div class="modal-overlay" id="modal-importar">
     <div class="glass-panel modal-box">
-        <h2 class="modal-title"><i class="fas fa-cloud-download-alt"></i> Inyección Masiva (Sheets / CSV Raw)</h2>
-        <p style="font-size: 11px; color: #a5b0bf; margin-bottom: 20px;">Pegue el enlace de su Google Sheets o cualquier URL RAW de un archivo CSV. El sistema procesará las coordenadas y las imágenes automáticamente.</p>
+        <h2 class="modal-title"><i class="fas fa-cloud-download-alt"></i> Inyección Masiva (Sheets/CSV)</h2>
+        <p style="font-size: 11px; color: #a5b0bf; margin-bottom: 20px;">Pegue el enlace de su Google Sheets (CSV) o URL RAW de archivo CSV. El sistema procesará las coordenadas y las imágenes automáticamente.</p>
         
-        <input type="text" id="input-url-sheets" class="modal-input" placeholder="https://.../archivo.csv o enlace de Sheets">
+        <input type="text" id="input-url-sheets" class="modal-input" placeholder="https://docs.google.com/spreadsheets/d/.../export?format=csv o URL .csv">
         
         <button class="btn btn-solid-yellow" style="width: 100%; margin-bottom: 15px;" id="btn-analizar-csv" onclick="analizarCabecerasCSV()">
             1. LEER COLUMNAS DEL ARCHIVO
@@ -863,31 +556,666 @@
     </div>
 </div>
 
+<script>
+    /* ==========================================================================
+       MODO FANTASMA: BLINDAJE ANTI-INSPECCIÓN (F12) Y BLOQUEOS
+       ========================================================================== */
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    
+    document.addEventListener('keydown', e => {
+        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'U')) {
+            e.preventDefault();
+        }
+    });
+
+    setInterval(function() {
+        const widthThreshold = window.outerWidth - window.innerWidth > 160;
+        const heightThreshold = window.outerHeight - window.innerHeight > 160;
+        if(widthThreshold || heightThreshold) {
+            console.clear();
+            document.getElementById('map').style.display = 'none';
+            document.body.innerHTML = '<div style="display:flex; height:100vh; justify-content:center; align-items:center; background:#000; color:#da3633; font-family:Inter,sans-serif; font-size:24px; font-weight:900; text-align:center; padding:20px;">⚠️ ACCESO DENEGADO<br>SISTEMA PROTEGIDO<br>ALCALDÍA BOLIVARIANA DE AYACUCHO</div>';
+        }
+    }, 1000);
+</script>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 
 <script>
     /* ==========================================================================
-       FASE 0: VARIABLES GITHUB API
+       FASE 0: VARIABLES EMAILJS, GITHUB API Y SEGURIDAD SGF
        ========================================================================== */
-    const GITHUB_OWNER = 'proyectomaps2026';
-    const REPO_NAME = 'proyectomaps2026';
+    const EMAILJS_PUBLIC_KEY = "TU_PUBLIC_KEY"; 
+    const EMAILJS_SERVICE_ID = "TU_SERVICE_ID";
+    const EMAILJS_TEMPLATE_ID = "TU_TEMPLATE_ID";
+
+    (function(){ emailjs.init(EMAILJS_PUBLIC_KEY); })();
+
+    const GITHUB_USER = 'proyectomaps2026';
+    const GITHUB_REPO = 'mapa_hecho'; 
     const FILE_PATH = 'config.json';
     let fileSha = null;
     
-    // Validación Dinámica: Almacena credenciales en memoria (sobreescritas por JSON en Nube)
-    let SYSTEM_AUTH = { user: 'hacienda', pass: 'admin2026' };
+    let SYSTEM_AUTH = { user: 'admin', pass: 'admin', license: '', csvUrl: '' }; 
+    let CURRENT_ROLE = null; 
+    let CHECK_LICENSE_INTERVAL = null;
 
     /* ==========================================================================
-       FASE 1: NÚCLEO DE MEMORIA Y CONFIGURACIÓN BASE
+       MOTOR DE LICENCIAS Y TOKENS SGF
+       ========================================================================== */
+    function analizarLicenciaSGF(licStr) {
+        if(!licStr) return { valid: false, expired: true, days: 0 };
+        const parts = licStr.split('-');
+        if(parts[0] !== 'SGF' || parts.length !== 4) return { valid: false, expired: true, days: 0 };
+
+        const usuario = parts[1];
+        const tokenRev = parts[2];
+        let dateStr;
+        
+        try {
+            dateStr = atob(parts[3]); 
+        } catch(e) {
+            return { valid: false, expired: true, days: 0 };
+        }
+
+        dateStr = dateStr.replace(/[-/]/g, '');
+
+        if(dateStr.length !== 8) return { valid: false, expired: true, days: 0 };
+        
+        const expYear = parseInt(dateStr.substring(0,4));
+        const expMonth = parseInt(dateStr.substring(4,6)) - 1;
+        const expDay = parseInt(dateStr.substring(6,8));
+        
+        const expDate = new Date(expYear, expMonth, expDay, 23, 59, 59);
+        const today = new Date();
+        const diffTime = expDate - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        return { 
+            valid: true, 
+            expired: diffDays <= 0, 
+            days: diffDays,
+            tokenRev: tokenRev,
+            usuario: usuario
+        };
+    }
+
+    function obtenerCadenaLicencia() {
+        if (SYSTEM_AUTH && SYSTEM_AUTH.license && String(SYSTEM_AUTH.license).trim().startsWith('SGF-')) {
+            return String(SYSTEM_AUTH.license).trim();
+        }
+        const ls = localStorage.getItem('sgf_license');
+        return ls ? ls.trim() : '';
+    }
+
+    function obtenerEstatusParaCuadro(reg) {
+        const d = reg.datosGenerales || {};
+        const v = d['Estatus'] || d['Categoría'] || d['Categoria'] || d['Estado'] || d['Semáforo'] || d['Categoria '];
+        if (v != null && String(v).trim() !== '') return String(v).trim();
+        return 'SIN CATEGORÍA';
+    }
+
+    function escHtmlBasico(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function getRealToken() {
+        if (CURRENT_ROLE === 'SUPERADMIN') {
+            const tk = localStorage.getItem('master_token_revert');
+            return tk ? tk.split('').reverse().join('') : null;
+        } else if (CURRENT_ROLE === 'ADMIN') {
+            const lic = obtenerCadenaLicencia();
+            const parsed = analizarLicenciaSGF(lic);
+            if (parsed.valid && !parsed.expired && parsed.tokenRev) {
+                return parsed.tokenRev.split('').reverse().join('');
+            }
+        }
+        return null;
+    }
+
+    /* ==========================================================================
+       FLUJO DE ACCESO ESTRICTO (LOGIN) Y LIMPIEZA DE DOM
+       ========================================================================== */
+    function intentarLogin() {
+        const user = document.getElementById('login-user').value.trim();
+        const pass = document.getElementById('login-pass').value.trim();
+        const errorDiv = document.getElementById('login-error-msg');
+        errorDiv.style.display = 'none';
+
+        if (user === 'Ing_Wolgfan' && pass === 'SGF-AURA-2026-SUPREMA') {
+            CURRENT_ROLE = 'SUPERADMIN';
+            document.getElementById('rol-indicador').innerHTML = '<i class="fas fa-crown"></i> SESIÓN: SUPER ADMIN (WOLGFAN)';
+            document.getElementById('panel-superadmin').style.display = 'block';
+            
+            const btnRaw = document.getElementById('btn-cargar-raw');
+            if(btnRaw) btnRaw.style.display = 'flex';
+            
+            const panelAdmin = document.getElementById('panel-admin-licencia');
+            if(panelAdmin) panelAdmin.remove();
+
+            const licLockS = document.getElementById('license-lock-overlay');
+            if (licLockS) licLockS.style.display = 'none';
+
+            document.getElementById('login-overlay').style.display = 'none';
+            actualizarUIYMapa(); 
+            cargarDatosNube();
+            return;
+        }
+
+        if (user === SYSTEM_AUTH.user && pass === SYSTEM_AUTH.pass) {
+            CURRENT_ROLE = 'ADMIN';
+            document.getElementById('rol-indicador').innerHTML = '<i class="fas fa-user-shield"></i> SESIÓN: ADMIN HACIENDA';
+            document.getElementById('panel-admin-licencia').style.display = 'block';
+            
+            const btnRaw = document.getElementById('btn-cargar-raw');
+            if(btnRaw) btnRaw.remove();
+            const pnlSup = document.getElementById('panel-superadmin');
+            if(pnlSup) pnlSup.remove();
+
+            document.getElementById('login-overlay').style.display = 'none';
+            actualizarUIYMapa();
+            iniciarCicloLicenciaAdmin();
+            return;
+        }
+
+        errorDiv.innerText = "Usuario o clave incorrectos.";
+        errorDiv.style.display = 'block';
+    }
+
+    /* ==========================================================================
+       CONTROL DE TIEMPO, BLOQUEO Y RESCATE (ADMIN)
+       ========================================================================== */
+    async function iniciarCicloLicenciaAdmin() {
+        await cargarDatosNube();
+        validarLicenciaYBloqueo();
+        CHECK_LICENSE_INTERVAL = setInterval(async () => {
+            await cargarDatosNube();
+            validarLicenciaYBloqueo();
+        }, 60000);
+    }
+
+    function validarLicenciaYBloqueo() {
+        if(CURRENT_ROLE !== 'ADMIN') return;
+        
+        const lic = obtenerCadenaLicencia();
+        const est = analizarLicenciaSGF(lic);
+
+        const lblDias = document.getElementById('lbl-dias-lic');
+        if(lblDias) lblDias.innerText = est.days > 0 ? est.days : 0;
+
+        const lockOv = document.getElementById('license-lock-overlay');
+        const lockH = document.getElementById('lock-banner-heading');
+        const lockP = document.getElementById('lock-banner-text');
+
+        if (!est.valid || est.expired) {
+            if (lockH && lockP) {
+                if (!est.valid) {
+                    lockH.textContent = 'ACTIVACIÓN REQUERIDA';
+                    lockP.innerHTML = 'Ingrese su clave de acceso institucional (SGF) para desbloquear el sistema.<br>Puede descargar respaldo Word o Excel antes de continuar.';
+                } else {
+                    lockH.textContent = 'LICENCIA SGF VENCIDA';
+                    lockP.innerHTML = 'Su período de acceso ha finalizado. Ingrese una licencia vigente o descargue un respaldo de sus datos.';
+                }
+            }
+            if (lockOv) lockOv.style.display = 'flex';
+            const wb = document.getElementById('license-warning-box');
+            if (wb) wb.style.display = 'none';
+        } else {
+            if (lockOv) lockOv.style.display = 'none';
+            const warnBox = document.getElementById('license-warning-box');
+            const licDays = document.getElementById('license-days-count');
+            if (est.days <= 10) {
+                if (warnBox) warnBox.style.display = 'block';
+                if (licDays) licDays.innerText = est.days;
+            } else {
+                if (warnBox) warnBox.style.display = 'none';
+            }
+        }
+    }
+
+    async function guardarLicenciaDesdeBloqueo() {
+        const val = document.getElementById('lock-new-license').value.trim();
+        if(!val) return alert("Ingrese el código de licencia.");
+        const est = analizarLicenciaSGF(val);
+        if(!est.valid || est.expired) return alert("Licencia Inválida o ya Expirada.");
+        
+        localStorage.setItem('sgf_license', val);
+        SYSTEM_AUTH.license = val;
+        alert("Licencia Activada localmente. Sincronizando con la nube...");
+        
+        const lockOv = document.getElementById('license-lock-overlay');
+        if (lockOv) lockOv.style.display = 'none';
+        
+        validarLicenciaYBloqueo();
+        await guardarEnServidor(); 
+        await cargarDatosNube();
+    }
+
+    async function actualizarLicenciaInterna() {
+        const val = document.getElementById('input-update-license').value.trim();
+        
+        if(!val) return alert("Ingrese el código de licencia.");
+        const est = analizarLicenciaSGF(val);
+        if(!est.valid || est.expired) return alert("Licencia Inválida o ya Expirada.");
+        
+        localStorage.setItem('sgf_license', val);
+        SYSTEM_AUTH.license = val;
+        
+        alert("Licencia Renovada con éxito. Sincronizando con la nube...");
+        validarLicenciaYBloqueo();
+        await guardarEnServidor();
+    }
+
+    /* ==========================================================================
+       MAPEO DE CSV (PANEL DE SUPER ADMIN)
+       ========================================================================== */
+    let csvDataTemp = null;
+    let csvHeadersTemp = [];
+
+    async function cargarCsvDesdeUrl() {
+        const url = document.getElementById('input-csv-url').value.trim();
+        if(!url) return alert("Por favor, ingrese una URL de CSV válida.");
+        
+        const btn = document.querySelector('button[onclick="cargarCsvDesdeUrl()"]');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = "<i class='fas fa-spinner fa-spin'></i> CARGANDO...";
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(url);
+            if(!response.ok) throw new Error("Error al descargar el archivo CSV. Verifique que la URL sea pública y permita CORS.");
+            
+            const arrayBuffer = await response.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, {type: 'array', codepage: 65001});
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            csvDataTemp = XLSX.utils.sheet_to_json(worksheet);
+            
+            if (csvDataTemp.length > 0) {
+                csvHeadersTemp = Object.keys(csvDataTemp[0]);
+                mostrarPanelMapeoCsv();
+            } else {
+                alert("El archivo CSV está vacío o no tiene el formato correcto.");
+            }
+            
+            SYSTEM_AUTH.csvUrl = url;
+            await guardarEnServidor();
+        } catch(e) {
+            console.error(e);
+            alert("❌ Error al cargar CSV: " + e.message + "\n\nNota: Si el servidor del CSV no permite CORS, esta operación fallará desde el navegador.");
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    function mostrarPanelMapeoCsv() {
+        const container = document.getElementById('csv-mapping-fields');
+        container.innerHTML = '';
+        
+        const camposMapeo = [
+            { id: 'map-lat', label: 'LATITUD (Coordenada Y)', required: true },
+            { id: 'map-lng', label: 'LONGITUD (Coordenada X)', required: true },
+            { id: 'map-name', label: 'CONTRIBUYENTE / NOMBRE', required: true },
+            { id: 'map-status', label: 'ESTATUS / SEMÁFORO', required: false },
+            { id: 'map-foto', label: 'FOTO / IMAGEN (URL)', required: false }
+        ];
+
+        camposMapeo.forEach(campo => {
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <label style="color: white; font-size: 11px; font-weight: bold; display: block; margin-bottom: 5px;">
+                    ${campo.label} ${campo.required ? '<span style="color:red;">*</span>' : ''}
+                </label>
+                <select id="${campo.id}" class="modal-input" style="padding: 10px; font-size: 12px; width: 100%; border: 1px solid var(--border-color); background: #1c2128; color: white;">
+                    <option value="">-- SELECCIONE COLUMNA CSV --</option>
+                    ${csvHeadersTemp.map(h => `<option value="${h}">${h}</option>`).join('')}
+                </select>
+            `;
+            container.appendChild(div);
+        });
+
+        document.getElementById('csv-mapping-modal').style.display = 'flex';
+    }
+
+    async function confirmarMapeoCsv() {
+        const latCol = document.getElementById('map-lat').value;
+        const lngCol = document.getElementById('map-lng').value;
+        const nameCol = document.getElementById('map-name').value;
+        const statusCol = document.getElementById('map-status').value;
+        const fotoCol = document.getElementById('map-foto').value;
+
+        if (!latCol || !lngCol || !nameCol) {
+            return alert("Debe seleccionar las columnas obligatorias para Latitud, Longitud y Nombre.");
+        }
+
+        if (!confirm(`¿Proceder a mapear ${csvDataTemp.length} puntos? Se creará una nueva capa de trabajo.`)) return;
+
+        const idSector = 'sec_' + Date.now();
+        const nombreSector = "IMPORTACIÓN CSV " + new Date().toLocaleTimeString();
+        
+        capasSectores[idSector] = new L.FeatureGroup();
+        STORE[idSector] = {
+            nombreSector: nombreSector,
+            visible: true,
+            isMaster: false,
+            isExpanded: true,
+            visibilidadPorEstatus: {},
+            coloresPorEstatus: {},
+            colorPrincipal: '#8e44ad',
+            registros: []
+        };
+
+        let exitosos = 0;
+        let errores = 0;
+
+        csvDataTemp.forEach(row => {
+            try {
+                let lat, lng;
+                if (latCol === lngCol) {
+                    let val = String(row[latCol] || '').trim();
+                    let parts = val.split(/[,;\s]+/);
+                    if (parts.length >= 2) {
+                        lat = parseFloat(parts[0]);
+                        lng = parseFloat(parts[1]);
+                    } else {
+                        lat = NaN;
+                        lng = NaN;
+                    }
+                } else {
+                    lat = parseFloat(row[latCol]);
+                    lng = parseFloat(row[lngCol]);
+                }
+
+                const contribuyente = row[nameCol] || "SIN NOMBRE";
+                const estatus = statusCol ? (row[statusCol] || "SIN CATEGORÍA") : "SIN CATEGORÍA";
+                const fotoUrl = fotoCol ? (row[fotoCol] || "") : ""; 
+
+                if (isNaN(lat) || isNaN(lng)) {
+                    errores++;
+                    return;
+                }
+
+                const confEst = DICCIONARIO_ESTATUS[estatus] || DICCIONARIO_ESTATUS["SIN CATEGORÍA"];
+                const capa = L.marker([lat, lng], { 
+                    icon: crearPinFiscal(confEst.color), 
+                    draggable: !modoLecturaGlobal 
+                });
+                
+                const newIdFisico = L.stamp(capa);
+                
+                const datosGenerales = {
+                    "Contribuyente": contribuyente,
+                    "Estatus": estatus,
+                    "Link Fotografía": fotoUrl
+                };
+
+                const nuevoReg = {
+                    idFisico: newIdFisico,
+                    tipoGeometria: 'marker',
+                    capaLeaflet: capa,
+                    colorPersonalizado: null,
+                    visibleIndividual: true,
+                    _modoPopup: 'lectura',
+                    datosGenerales: datosGenerales,
+                    camposOcultos: []
+                };
+                
+                STORE[idSector].registros.push(nuevoReg);
+                vincularEventosCapa(capa, idSector, newIdFisico);
+                exitosos++;
+            } catch (e) {
+                console.error(e);
+                errores++;
+            }
+        });
+
+        document.getElementById('csv-mapping-modal').style.display = 'none';
+        capaActivaId = idSector;
+        actualizarUIYMapa();
+        
+        alert(`✅ Importación completada:\n- Exitosos: ${exitosos}\n- Errores (Coord. inválidas): ${errores}\n\nLos puntos han sido cargados en la capa "${nombreSector}". Recuerde guardar en la nube para persistir.`);
+    }
+
+    /* ==========================================================================
+       EXPORTACIÓN A EXCEL / WORD
+       ========================================================================== */
+    function exportarExcelInstitucional() {
+        if(Object.keys(STORE).length === 0) return alert("No hay datos en memoria para exportar.");
+        const wb = XLSX.utils.book_new();
+        let datosParaExcel = [];
+        
+        Object.keys(STORE).forEach(idCapa => {
+            STORE[idCapa].registros.forEach(reg => {
+                const d = reg.datosGenerales;
+                const nombreSector = STORE[idCapa].nombreSector || "Sin Sector"; 
+
+                datosParaExcel.push({
+                    "SECTOR": nombreSector, 
+                    "RIF/CÉDULA": d["RIF"] || d["Cédula"] || d["Identificacion"] || "S/D",
+                    "CONTRIBUYENTE": d["Contribuyente"] || d["Razon Social"] || "Sin Nombre",
+                    "ESTADO FISCAL": d["Estatus"] || "Pendiente",
+                });
+            });
+        });
+
+        datosParaExcel.sort((a, b) => a.SECTOR.localeCompare(b.SECTOR) || a.CONTRIBUYENTE.localeCompare(b.CONTRIBUYENTE));
+
+        const ws = XLSX.utils.json_to_sheet(datosParaExcel);
+        const textoLegal = "Este reporte es un instrumento de transparencia emitido en cumplimiento de los Arts. 168 y 174 de la CRBV; Arts. 2, 75 y 161 de la LOPPM; y los Arts. 9, 23 y 77 de la Ley de Contraloría General de la República. El Plan Piloto de la Alcaldía de Ayacucho garantiza información fidedigna y auditable, protegiendo datos personales (Ley de Infogobierno).";
+        
+        const filaFinal = datosParaExcel.length + 3;
+        XLSX.utils.sheet_add_aoa(ws, [["LISTADO GENERAL - PLAN PILOTO - ALCALDÍA DE AYACUCHO"]], { origin: "A1" });
+        XLSX.utils.sheet_add_aoa(ws, [[textoLegal]], { origin: `A${filaFinal}` });
+        
+        XLSX.utils.book_append_sheet(wb, ws, "Reporte Fiscal");
+        XLSX.writeFile(wb, "Reporte_Fiscal_Ayacucho.xlsx");
+    }
+
+    function descargarRespaldoWord() {
+        if (typeof docx === 'undefined') {
+            return alert("Error: La librería de generación de documentos no se cargó correctamente.");
+        }
+        if (Object.keys(STORE).length === 0) {
+            return alert("No hay datos cargados para generar un respaldo.");
+        }
+
+        const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, Header, Footer, PageNumber } = docx;
+        const systemId = `SGF-CLOUD-${new Date().getFullYear()}`;
+
+        const allRecords = [];
+        Object.values(STORE).forEach(sector => {
+            allRecords.push(...sector.registros);
+        });
+
+        const tableRows = [];
+        const headerRow = new TableRow({
+            children: [
+                new TableCell({ width: { size: 2500, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "IDENTIDAD / REGISTRO", bold: true, size: 16 })] })] }),
+                new TableCell({ width: { size: 3000, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "UBICACIÓN", bold: true, size: 16 })] })] }),
+                new TableCell({ width: { size: 2000, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "ESTADO FISCAL", bold: true, size: 16 })] })] }),
+                new TableCell({ width: { size: 2000, type: WidthType.DXA }, children: [new Paragraph({ children: [new TextRun({ text: "DOCUMENTACIÓN", bold: true, size: 16 })] })] }),
+            ],
+            tableHeader: true,
+        });
+        tableRows.push(headerRow);
+
+        allRecords.forEach(reg => {
+            const d = reg.datosGenerales || {};
+            const identidad = d["Razón Social"] || d["Nombre Comercial"] || d["Contribuyente"] || "Sin Identificar";
+            const registro = d["RIF / Registro"] || d["RIF"] || "N/A";
+            const latLng = reg.capaLeaflet && reg.capaLeaflet.getLatLng ? reg.capaLeaflet.getLatLng() : { lat: 0, lng: 0 };
+            const coordsText = `GPS: ${latLng.lat.toFixed(6)}, ${latLng.lng.toFixed(6)}`;
+            const ubicacion = `${d["Dirección (Referencia Manual)"] || "No especificada."}\n${coordsText}`;
+            const documentacion = `Exp: ${d["N° Expediente"] || "N/A"}\nCenso: ${d["N° de censo"] || reg.idFisico}\nAuditoría: ${d["ID_Auditoria"] || "N/A"}`;
+            const estadoFiscal = `Validación: ${d["Validación Fiscal"] || d["Estatus"] || "N/A"}\nLicencia: ${d["Situación Sin Licencia"] || "N/A"}\nPago: ${d["Semáforo de Acuerdo de Pago"] || "N/A"}`;
+            tableRows.push(new TableRow({
+                children: [
+                    new TableCell({ children: [
+                        new Paragraph({ children: [new TextRun({ text: identidad, bold: true, size: 18 })] }),
+                        new Paragraph({ children: [new TextRun({ text: registro, size: 16 })] }),
+                    ]}),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: ubicacion, size: 16 })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: estadoFiscal, size: 16 })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: documentacion, size: 16 })] })] }),
+                ],
+            }));
+        });
+
+        const table = new Table({
+            rows: tableRows,
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            columnWidths: [2500, 3000, 2000, 2000],
+        });
+
+        const doc = new Document({
+            sections: [{
+                headers: {
+                    default: new Header({
+                        children: [new Paragraph({
+                            text: "REPÚBLICA BOLIVARIANA DE VENEZUELA - ALCALDÍA DEL MUNICIPIO AYACUCHO",
+                            alignment: AlignmentType.CENTER,
+                            style: "Header"
+                        })],
+                    }),
+                },
+                footers: {
+                    default: new Footer({
+                        children: [new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [
+                                new TextRun(`Documento generado por SGF-CLOUD - ID Sistema: ${systemId} - Página `),
+                                new TextRun({
+                                    children: [PageNumber.CURRENT, " de ", PageNumber.TOTAL_PAGES],
+                                }),
+                            ],
+                        })],
+                    }),
+                },
+                children: [
+                    new Paragraph({ text: `Fecha de Emisión: ${new Date().toLocaleString()}`, alignment: AlignmentType.RIGHT }),
+                    new Paragraph(" "),
+                    table,
+                    new Paragraph(" "),
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "CERTIFICACIÓN LEGAL Y ADMINISTRATIVA: ", bold: true, size: 20, break: 1 }),
+                            new TextRun({ text: "Respaldo maestro de fiscalización conforme a normativa municipal.", size: 20 }),
+                        ],
+                        alignment: AlignmentType.JUSTIFIED,
+                    }),
+                ],
+            }],
+        });
+
+        Packer.toBlob(doc).then(blob => {
+            saveAs(blob, `Respaldo_Maestro_Fiscal_Ayacucho_${Date.now()}.docx`);
+        });
+    }
+
+    /* ==========================================================================
+       MÓDULO DE CAPTURA FOTOGRÁFICA DE ALTA PRECISIÓN
+       ========================================================================== */
+    function previsualizarCaptura() {
+        const modalCapture = document.getElementById('capture-modal');
+        const modalSuccess = document.getElementById('success-modal');
+        
+        modalCapture.querySelector('span').innerHTML = '🔄 INICIANDO CAPTURA...<br><small style="color: #a5b0bf; font-size: 12px;">Preparando el área de reporte.</small>';
+        modalCapture.style.display = 'flex';
+        
+        mapa.invalidateSize();
+
+        const watermark = document.createElement('div');
+        watermark.id = 'report-watermark';
+        watermark.innerHTML = `
+            <div style="border-left: 4px solid #da3633; padding-left: 12px; font-family:Inter,sans-serif; text-align:left; line-height:1.5;">
+                <strong style="color: #111; font-size: 14px;">Reporte Generado por el sistema fiscal de Hacienda municipal</strong><br>
+                <span style="color: #555555; font-size: 11px;">Plan piloto rumbo a la modernización fiscal</span><br>
+                <em style="color: #ff0000; font-size: 11px; font-weight: 900;">¡PORQUE CON TRABAJO SE PRODUCE!</em><br>
+                <strong style="color: #000000; font-size: 12px; display:block; margin-top:3px;">ALCALDESA YOIRA VARGAS</strong>
+                <span style="color: #aaaaaa; font-size: 10px;">© 2026 - Sistema Protegido - Alcaldía Bolivariana de Ayacucho</span>
+            </div>
+        `;
+        watermark.style.cssText = 'position:absolute; bottom:30px; right:30px; background:rgba(255,255,255,0.95); padding:15px 20px; border-radius:8px; z-index:99999; box-shadow:0 10px 30px rgba(0,0,0,0.4); border: 1px solid rgba(0,0,0,0.1);';
+        document.getElementById('map').appendChild(watermark);
+
+        setTimeout(() => {
+            modalCapture.style.display = 'none'; 
+            
+            setTimeout(() => {
+                const mapElement = document.getElementById('map');
+                const mapCanvas = mapElement.getBoundingClientRect();
+
+                const uiLayers = document.querySelectorAll('.ui-layer, .leaflet-control-container, .footer-protegido');
+                uiLayers.forEach(el => el.style.visibility = 'hidden');
+
+                html2canvas(document.body, {
+                    x: mapCanvas.left,
+                    y: mapCanvas.top,
+                    width: mapCanvas.width,
+                    height: mapCanvas.height,
+                    scrollX: 0,
+                    scrollY: 0,
+                    scroll: false,
+                    useCORS: true,
+                    allowTaint: false,
+                    scale: 2
+                }).then(canvas => {
+                    uiLayers.forEach(el => el.style.visibility = 'visible');
+                    
+                    if(document.getElementById('report-watermark')) {
+                        document.getElementById('report-watermark').remove();
+                    }
+
+                    const imageLink = document.createElement('a');
+                    imageLink.download = `REPORTE_HACIENDA_AYACUCHO_${Date.now()}.png`;
+                    imageLink.href = canvas.toDataURL("image/png");
+                    imageLink.click();
+
+                    modalSuccess.style.display = 'flex';
+                    setTimeout(() => { modalSuccess.style.display = 'none'; }, 3000);
+
+                }).catch(err => {
+                    uiLayers.forEach(el => el.style.visibility = 'visible');
+                    if(document.getElementById('report-watermark')) {
+                        document.getElementById('report-watermark').remove();
+                    }
+                    console.error("Fallo al generar reporte:", err);
+                    alert("Error al capturar imagen. Revise consola.");
+                });
+            }, 1500); 
+        }, 1000); 
+    }
+
+    /* ==========================================================================
+       FASE 1: NÚCLEO DE MEMORIA Y CONFIGURACIÓN BASE LEAFLET
        ========================================================================== */
     const mapa = L.map('map', { center: [8.02611, -72.25244], zoom: 16, zoomControl: false });
-    L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { subdomains:['mt0','mt1','mt2','mt3'], maxZoom: 21 }).addTo(mapa);
+    mapa.attributionControl.setPrefix('PROYECTO HACIENDA 2026');
 
-    // OBJETO GLOBAL DE CAPAS INDEPENDIENTES (Evita borrados globales)
+    const googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { subdomains:['mt0','mt1','mt2','mt3'], maxZoom: 21 });
+    const googleStreets = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { subdomains:['mt0','mt1','mt2','mt3'], maxZoom: 21 });
+    
+    googleSat.addTo(mapa); 
+
+    const capaMaestraSectores = L.featureGroup().addTo(mapa);
+    
+    const baseMaps = {
+        "Vista Satélite": googleSat,
+        "Vista Mapa Urbano": googleStreets
+    };
+    const overlayMaps = {
+        "Sectores Digitalizados": capaMaestraSectores
+    };
+    L.control.layers(baseMaps, overlayMaps, {position: 'topright'}).addTo(mapa);
+
     const capasSectores = {};
-
-    // BASE DE DATOS MAESTRA ESTADO-DIRIGIDA
     let STORE = {}; 
     let capaActivaId = null; 
     let modoLecturaGlobal = false;
@@ -908,7 +1236,6 @@
         className: 'pin-fiscal-ayacucho', iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -30] 
     });
 
-    // Herramientas Leaflet Draw - Inicializando polígonos con un fondo translúcido estético
     const herramientaPunto = new L.Draw.Marker(mapa, { icon: crearPinFiscal(DICCIONARIO_ESTATUS["CENSO / NUEVO"].color) });
     const herramientaPoligono = new L.Draw.Polygon(mapa, { 
         shapeOptions: { color: DICCIONARIO_ESTATUS["CENSO / NUEVO"].color, fillColor: DICCIONARIO_ESTATUS["CENSO / NUEVO"].color, fillOpacity: 0.2, weight: 3, dashArray: '5, 5' }
@@ -922,11 +1249,9 @@
         tipo === 'punto' ? herramientaPunto.enable() : herramientaPoligono.enable();
     }
 
-    // EVENTO DE CREACIÓN MANUAL (DIBUJO DE POLÍGONOS Y MARCADORES)
     mapa.on(L.Draw.Event.CREATED, (evento) => {
         const idFisico = L.stamp(evento.layer);
         
-        // Configuración estética y de edición al nacer
         if(evento.layer instanceof L.Marker) {
             if (!modoLecturaGlobal) evento.layer.options.draggable = true;
             evento.layer.on('dragend', () => actualizarUIYMapa());
@@ -959,14 +1284,10 @@
         
         actualizarUIYMapa();
         
-        // Abrir popup inmediatamente en un registro nuevo
         setTimeout(() => abrirPopupDinamico(capaActivaId, idFisico), 200);
-        
-        // Forzamos abrir en modo edición automáticamente por ser nuevo
         setTimeout(() => toggleModoPopup(idFisico, 'edit'), 300);
     });
 
-    // FUNCIÓN DE ÁRBOL: Apagar/Encender contribuyentes individuales usando Ojitos
     function toggleVisibilidadIndividual(idSector, idFisico, isVisible) {
         const reg = STORE[idSector].registros.find(r => String(r.idFisico) === String(idFisico));
         if(reg) {
@@ -975,7 +1296,6 @@
         }
     }
 
-    // VISIBILIDAD POR CATEGORÍA COMPLETA (Polígonos y Marcadores mediante Ojito)
     function toggleVisibilidadEstatus(idSector, estatus, isVisible) {
         if (!STORE[idSector]) return;
         if (!STORE[idSector].visibilidadPorEstatus) STORE[idSector].visibilidadPorEstatus = {};
@@ -983,14 +1303,12 @@
         actualizarUIYMapa();
     }
 
-    // Funciones Maestras Sector
     function actualizarNombreSector(id, valor) {
         if(!STORE[id]) return;
         STORE[id].nombreSector = valor.toUpperCase();
         actualizarUIYMapa();
     }
 
-    // SINCRONIZACIÓN DE COLOR TOTAL (Afecta Marcadores y Polígonos de una Categoría)
     function cambiarColorEstatusSector(idSector, estatus, colorHex) {
         if (modoLecturaGlobal) return alert("Modo lectura activo.");
         if (!STORE[idSector]) return;
@@ -999,10 +1317,9 @@
         STORE[idSector].coloresPorEstatus[estatus] = colorHex;
         
         STORE[idSector].registros.forEach(reg => {
-            const estActual = reg.datosGenerales["Estatus"] || "SIN CATEGORÍA";
+            const estActual = obtenerEstatusParaCuadro(reg);
             if (estActual === estatus) {
                 reg.colorPersonalizado = colorHex;
-                // Diferenciar entre Marcador y Polígono para aplicar la estética correcta
                 if (reg.tipoGeometria === 'marker') {
                     reg.capaLeaflet.setIcon(crearPinFiscal(colorHex));
                 } else if (reg.tipoGeometria === 'polygon' || reg.tipoGeometria === 'rectangle') {
@@ -1014,7 +1331,6 @@
         actualizarUIYMapa();
     }
 
-    // Cambiar Color a nivel Sector General
     function cambiarColorSector(idSector, colorHex) {
         if (modoLecturaGlobal) return alert("Modo lectura activo.");
         if (!STORE[idSector]) return;
@@ -1032,10 +1348,33 @@
         
         actualizarUIYMapa();
     }
+    
+    function toggleSectorBodyManual(e, idSector) {
+        if(e.target.tagName === 'INPUT' || e.target.tagName === 'I' || e.target.classList.contains('radio-active')) return;
+        if(STORE[idSector].isExpanded === undefined) STORE[idSector].isExpanded = true;
+        STORE[idSector].isExpanded = !STORE[idSector].isExpanded;
+        actualizarUIYMapa();
+    }
 
+    function eliminarDelClon(idSector, idFisico) {
+        if(modoLecturaGlobal) return;
+        if(STORE[idSector].isMaster) return alert("Registro Protegido en Capa Maestra.");
+        if(!confirm("¿Eliminar este contribuyente del mapa y del censo?")) return;
+        
+        const reg = STORE[idSector].registros.find(r => String(r.idFisico) === String(idFisico));
+        if(reg && capasSectores[idSector].hasLayer(reg.capaLeaflet)) {
+            capasSectores[idSector].removeLayer(reg.capaLeaflet);
+        }
+        
+        STORE[idSector].registros = STORE[idSector].registros.filter(r => String(r.idFisico) !== String(idFisico));
+        
+        if(mapa._popup) mapa.closePopup();
+        actualizarUIYMapa();
+    }
 
     /* ==========================================================================
        FASE 2: EL MOTOR STATE-DRIVEN (INDEPENDENCIA ABSOLUTA DE CAPAS)
+       RESTAURADO CON LA INTERFAZ EXACTA SOLICITADA Y FUNCIONES DEL MASTER
        ========================================================================== */
     function actualizarUIYMapa() {
         const contenedor = document.getElementById('arbol-datos');
@@ -1044,12 +1383,10 @@
         for(let idSector in STORE) {
             const sectorData = STORE[idSector];
 
-            // 1. INICIALIZAR GRUPO DE CAPA INDEPENDIENTE SI NO EXISTE
             if (!capasSectores[idSector]) {
                 capasSectores[idSector] = new L.FeatureGroup();
             }
 
-            // Vaciamos temporalmente ESTA capa exclusiva para reconstruirla con el filtro
             capasSectores[idSector].clearLayers();
 
             const gruposPorEstatus = {};
@@ -1058,16 +1395,14 @@
             sectorData.registros.forEach(reg => {
                 if(reg.visibleIndividual === undefined) reg.visibleIndividual = true;
                 
-                const estatus = reg.datosGenerales["Estatus"] || "SIN CATEGORÍA";
+                const estatus = obtenerEstatusParaCuadro(reg); 
                 
-                // Chequear visibilidad de la categoría completa (Ojito de sub-menú)
                 if(!sectorData.visibilidadPorEstatus) sectorData.visibilidadPorEstatus = {};
                 const estatusVisible = sectorData.visibilidadPorEstatus[estatus] !== false; 
 
                 const searchString = Object.values(reg.datosGenerales).join(" ").toLowerCase();
                 const cumpleFiltro = textoFiltroGlobal === "" || searchString.includes(textoFiltroGlobal);
 
-                // GESTIÓN INDEPENDIENTE: Si pasa los filtros de Ojitos, se añade a su grupo
                 const isPhysicallyVisible = sectorData.visible && reg.visibleIndividual && estatusVisible && cumpleFiltro;
                 const hasLayer = capasSectores[idSector].hasLayer(reg.capaLeaflet);
 
@@ -1085,21 +1420,18 @@
                 }
             });
 
-            // CONTROL DE CAPA EN EL MAPA: ADD o REMOVE de forma aislada
             if (sectorData.visible) {
-                if (!mapa.hasLayer(capasSectores[idSector])) {
-                    capasSectores[idSector].addTo(mapa);
+                if (!capaMaestraSectores.hasLayer(capasSectores[idSector])) {
+                    capaMaestraSectores.addLayer(capasSectores[idSector]);
                 }
             } else {
-                if (mapa.hasLayer(capasSectores[idSector])) {
-                    mapa.removeLayer(capasSectores[idSector]);
+                if (capaMaestraSectores.hasLayer(capasSectores[idSector])) {
+                    capaMaestraSectores.removeLayer(capasSectores[idSector]);
                 }
             }
 
-            // Omitir pintar en UI si el buscador lo vació
             if(textoFiltroGlobal !== "" && !hayResultadosBusqueda) continue;
 
-            // RENDERIZADO DEL PANEL DEL SECTOR
             const colorGlobalActual = sectorData.colorPrincipal || '#00f2ff';
             
             let htmlSector = `
@@ -1123,12 +1455,11 @@
                     </div>
                     
                     <div class="sector-controls">
-                        <i class="fas fa-trash-alt sector-trash" onclick="eliminarSectorDefinitivo('${idSector}')"></i>
+                        ${!sectorData.isMaster ? `<i class="fas fa-trash-alt sector-trash" onclick="eliminarSectorDefinitivo('${idSector}')"></i>` : `<i class="fas fa-shield-alt" style="color:var(--cyan-neon); font-size: 13px;" title="Capa Maestra (Protegida)"></i>`}
                     </div>
                 </div>
                 <div class="sector-body" style="display: ${idSector === capaActivaId || textoFiltroGlobal !== '' ? 'block' : 'none'};">`;
 
-            // ITERACIÓN DE CATEGORÍAS DENTRO DEL SECTOR
             for(let estatus in gruposPorEstatus) {
                 const confEst = DICCIONARIO_ESTATUS[estatus] || DICCIONARIO_ESTATUS["SIN CATEGORÍA"];
                 
@@ -1151,7 +1482,7 @@
                                style="cursor: pointer; width: 16px; text-align: center; color: ${estatusVisible ? 'white' : '#6e7681'}; margin-right: 5px;"
                                onclick="event.stopPropagation(); toggleVisibilidadEstatus('${idSector}', '${estatus}', ${!estatusVisible})"></i>
                             
-                            <!-- SELECTOR DE COLOR POR SUB-MENÚ (Afecta a polígonos y pines de esta categoría) -->
+                            <!-- SELECTOR DE COLOR POR SUB-MENÚ -->
                             <input type="color" title="Color de esta Categoría" value="${colorActual}"
                                    onclick="event.stopPropagation();"
                                    onchange="cambiarColorEstatusSector('${idSector}', '${estatus}', this.value)" 
@@ -1178,7 +1509,7 @@
                                 <i class="fas fa-caret-right" style="opacity:0.5"></i> 
                                 ${local.datosGenerales["Contribuyente"] || 'SIN NOMBRE'}
                             </div>
-                            <i class="fas fa-trash sector-trash" style="font-size:11px;" title="Borrar Registro" onclick="event.stopPropagation(); borrarRegistroIndividual('${idSector}', '${local.idFisico}')"></i>
+                            ${!sectorData.isMaster ? `<i class="fas fa-trash sector-trash" style="font-size:11px;" title="Borrar Registro" onclick="event.stopPropagation(); eliminarDelClon('${idSector}', '${local.idFisico}')"></i>` : `<i class="fas fa-lock" style="font-size:11px; color:#6e7681;" title="Registro Protegido"></i>`}
                         </div>`;
                 });
                 htmlSector += `</div></div>`;
@@ -1197,11 +1528,9 @@
         }
     }
 
-
     /* ==========================================================================
-       FASE 3: DOBLE VISTA EN POPUP (REPARACIÓN DE APERTURA ANTI-BLOQUEOS)
+       FASE 3: DOBLE VISTA EN POPUP
        ========================================================================== */
-    
     function vincularEventosCapa(capaFisica, idSector, idFisico) {
         capaFisica.on('click', () => {
             const reg = STORE[idSector].registros.find(r => String(r.idFisico) === String(idFisico));
@@ -1223,20 +1552,22 @@
         }
 
         const htmlContenido = generarContenidoHTMLPopup(idSector, idFisico);
+        
+        const esAuditoria = (registro.tipoGeometria === 'polygon' || registro.tipoGeometria === 'rectangle');
+        let classes = modoLecturaGlobal ? 'readonly-mode' : '';
+        if (esAuditoria) classes += ' audit-popup-wrapper';
 
-        // REPARACIÓN MAESTRA: Evita bloqueos forzando a Leaflet a desligar y reenganchar el Popup fresco
         capaMapa.unbindPopup();
         capaMapa.bindPopup(htmlContenido, { 
             minWidth: 320, 
             closeButton: true, 
-            className: modoLecturaGlobal ? 'readonly-mode' : '' 
+            className: classes.trim() 
         }).openPopup();
         
         mapa._popup = capaMapa.getPopup();
         mapa._popup._source = capaMapa; 
     }
 
-    // ALTERNADOR LIGERO DOM (Evita recargar Leaflet y bloqueos de setContent)
     function toggleModoPopup(idFisico, modo) {
         const divRead = document.getElementById(`view-mode-${idFisico}`);
         const divEdit = document.getElementById(`edit-mode-${idFisico}`);
@@ -1252,38 +1583,30 @@
         }
     }
 
-    // EL GENERADOR DE STRINGS HTML CON LA TÉCNICA DE DOBLE CONTENEDOR (DOM ESTÁTICO)
     function generarContenidoHTMLPopup(idSector, idFisico, forzarEdicion = false) {
-        const registro = STORE[idSector].registros.find(r => String(r.idFisico) === String(idFisico));
+        const sectorData = STORE[idSector];
+        const registro = sectorData.registros.find(r => String(r.idFisico) === String(idFisico));
         let html = `<div class="pop-wrapper">`;
 
-        // SI ES POLÍGONO (AUDITORÍA MUNICIPAL)
         if(registro.tipoGeometria === 'polygon' || registro.tipoGeometria === 'rectangle') {
             const rep = calcularAuditoria(registro.capaLeaflet);
+            const cuerpoEstatus = rep.textoCompacto ? escHtmlBasico(rep.textoCompacto) : '—';
             html += `
-            <div class="audit-report">
-                <h3 class="audit-title"><i class="fas fa-chart-area"></i> HACIENDA MUNICIPAL - AUDITORÍA</h3>
-                <div class="audit-stat" style="color:${DICCIONARIO_ESTATUS['VIGENTE'].color}"><span>Vigentes:</span> <span>${rep.v}</span></div>
-                <div class="audit-stat" style="color:${DICCIONARIO_ESTATUS['VENCIDA'].color}"><span>Vencidas:</span> <span>${rep.x}</span></div>
-                <div class="audit-stat" style="color:${DICCIONARIO_ESTATUS['TEMPORAL'].color}"><span>Temporales:</span> <span>${rep.t}</span></div>
-                <div class="audit-stat" style="color:#000; border-top:1px dashed #ccc; padding-top:10px; margin-top:10px;"><span>TOTAL LOCALES:</span> <span>${rep.total}</span></div>
+            <div class="audit-report glass-panel">
+                <h3 class="audit-title">RESUMEN DE CENSO - HACIENDA</h3>
+                <p class="audit-resumen-cuerpo">ESTATUS: ${cuerpoEstatus} · <span class="audit-total-inline">Total: ${rep.total}</span></p>
             </div>`;
         } 
-        // SI ES MARCADOR (FICHA DE CONTRIBUYENTE)
         else {
-            const estActual = registro.datosGenerales["Estatus"];
+            const estActual = registro.datosGenerales["Estatus"] || "SIN CATEGORÍA";
             const confEst = DICCIONARIO_ESTATUS[estActual] || DICCIONARIO_ESTATUS["SIN CATEGORÍA"];
             
-            // Evaluar de dónde hereda el color (Personalizado > Sector > Estatus Global)
             const colorSector = (STORE[idSector].coloresPorEstatus && STORE[idSector].coloresPorEstatus[estActual]) ? STORE[idSector].coloresPorEstatus[estActual] : confEst.color;
             const colorFinal = registro.colorPersonalizado || colorSector;
             
             const imgUrl = registro.datosGenerales["Link Fotografía"];
-            
-            // Verificamos si la foto está oculta (CASCADA)
             const isFotoOculta = registro.camposOcultos.includes("Link Fotografía");
             
-            // PORTADA UNIVERSAL HACIENDA MUNICIPAL (Respeta el Ojito de Link Fotografía)
             html += `
             <div class="pop-cover">
                 ${(!isFotoOculta && imgUrl && imgUrl.length > 10) ? `<img src="${imgUrl}" onerror="this.src='https://via.placeholder.com/400x160/111/fff?text=IMAGEN+ROTA'">` : `<i class="fas fa-store" style="font-size: 50px; color: #333;"></i>`}
@@ -1291,9 +1614,6 @@
             </div>
             <div class="pop-content">`;
 
-            // ==========================================
-            // CONTENEDOR 1: LECTURA PROFESIONAL ESTÁTICA
-            // ==========================================
             html += `<div id="view-mode-${idFisico}" style="display: ${forzarEdicion ? 'none' : 'block'};">`;
             for(let clave in registro.datosGenerales) {
                 if(clave === "Estatus" || clave === "Link Fotografía") continue;
@@ -1311,15 +1631,11 @@
             }
             html += `</div>`;
 
-            // ==========================================
-            // CONTENEDOR 2: EDICIÓN PROFUNDA (INPUTS)
-            // ==========================================
             html += `<div id="edit-mode-${idFisico}" style="display: ${forzarEdicion ? 'block' : 'none'};">`;
             for(let clave in registro.datosGenerales) {
                 if(clave === "Estatus" || clave === "Link Fotografía") continue;
                 const isOculto = registro.camposOcultos.includes(clave);
                 
-                // Actualizamos el STORE y también inyectamos directamente al Contenedor 1 para que al volver se vea el cambio sin recargar
                 html += `
                 <div class="form-group">
                     <i class="fas ${isOculto ? 'fa-eye-slash is-hidden' : 'fa-eye'} eye-btn" onclick="ejecutarToggleOjo(event, '${idSector}', '${idFisico}', '${clave}')"></i>
@@ -1349,17 +1665,19 @@
                 <input type="password" class="form-input input-oculto" value="${imgUrl || ''}" onchange="actualizarDatoCampo('${idSector}', '${idFisico}', 'Link Fotografía', this.value)">
             </div>
             
-            <button class="btn-popup-action btn-save" onclick="toggleModoPopup('${idFisico}', 'view')"><i class="fas fa-save"></i> GUARDAR Y VOLVER</button>
-            <button class="btn-popup-action btn-del" onclick="borrarRegistroIndividual('${idSector}', '${idFisico}')">ELIMINAR REGISTRO</button>
-            </div>`;
+            <button class="btn-popup-action btn-save" onclick="toggleModoPopup('${idFisico}', 'view')"><i class="fas fa-save"></i> GUARDAR Y VOLVER</button>`;
+            
+            if(!sectorData.isMaster) {
+                html += `<button class="btn-popup-action btn-del" onclick="eliminarDelClon('${idSector}', '${idFisico}')">ELIMINAR REGISTRO</button>`;
+            }
+            
+            html += `</div>`;
         }
         
         html += `</div></div>`;
         return html;
     }
 
-    // --- Controladores de Interacción del Popup ---
-    
     function cambiarColorPin(idSector, idFisico, colorHex) {
         if(modoLecturaGlobal) return;
         const regOrigen = STORE[idSector].registros.find(r => String(r.idFisico) === String(idFisico));
@@ -1367,11 +1685,9 @@
 
         const estatusTarget = regOrigen.datosGenerales["Estatus"] || "SIN CATEGORÍA";
 
-        // SINCRONIZACIÓN EN CASCADA: Guardar en la configuración del sector
         if(!STORE[idSector].coloresPorEstatus) STORE[idSector].coloresPorEstatus = {};
         STORE[idSector].coloresPorEstatus[estatusTarget] = colorHex;
 
-        // Aplicar a todos los registros de la misma categoría en este sector
         STORE[idSector].registros.forEach(reg => {
             const estActual = reg.datosGenerales["Estatus"] || "SIN CATEGORÍA";
             if (estActual === estatusTarget) {
@@ -1384,7 +1700,6 @@
             }
         });
 
-        // Refresco visual y HTML estático
         actualizarUIYMapa();
         const badge = document.getElementById(`badge-estatus-${idFisico}`);
         if (badge) badge.style.background = colorHex;
@@ -1400,16 +1715,13 @@
         const estatusTarget = regOrigen.datosGenerales["Estatus"] || "SIN CATEGORÍA";
         const isCurrentlyHidden = regOrigen.camposOcultos.includes(claveCampo);
 
-        // SINCRONIZACIÓN EN CASCADA: Aplicar a todos los de la misma categoría
         STORE[idSector].registros.forEach(reg => {
             const estActual = reg.datosGenerales["Estatus"] || "SIN CATEGORÍA";
             if (estActual === estatusTarget) {
                 if (isCurrentlyHidden) {
-                    // Lo mostramos (lo quitamos de camposOcultos)
                     const idx = reg.camposOcultos.indexOf(claveCampo);
                     if (idx > -1) reg.camposOcultos.splice(idx, 1);
                 } else {
-                    // Lo ocultamos (lo agregamos a camposOcultos)
                     if (!reg.camposOcultos.includes(claveCampo)) {
                         reg.camposOcultos.push(claveCampo);
                     }
@@ -1417,9 +1729,8 @@
             }
         });
 
-        actualizarUIYMapa(); // Asegura consistencia en UI
+        actualizarUIYMapa(); 
 
-        // Refrescamos rápido el popup y volvemos a vista de edición para no interrumpir
         if(mapa._popup) {
             const capaMapa = regOrigen.capaLeaflet;
             capaMapa.unbindPopup().bindPopup(generarContenidoHTMLPopup(idSector, idFisico, true), { minWidth: 320, closeButton: true, className: modoLecturaGlobal ? 'readonly-mode' : '' }).openPopup();
@@ -1429,7 +1740,6 @@
     function actualizarDatoCampo(idSector, idFisico, clave, valor) {
         STORE[idSector].registros.find(r => String(r.idFisico) === String(idFisico)).datosGenerales[clave] = valor;
         actualizarUIYMapa(); 
-        // Cero recargas de Leaflet aquí. Todo es DOM fluido.
     }
 
     function cambiarEstatusFisico(idSector, idFisico, nuevoEst) {
@@ -1439,7 +1749,7 @@
         const conf = DICCIONARIO_ESTATUS[nuevoEst] || DICCIONARIO_ESTATUS["SIN CATEGORÍA"];
         const colorSector = (STORE[idSector].coloresPorEstatus && STORE[idSector].coloresPorEstatus[nuevoEst]) ? STORE[idSector].coloresPorEstatus[nuevoEst] : conf.color;
         
-        reg.colorPersonalizado = colorSector; // Adopta el color de su nueva categoría
+        reg.colorPersonalizado = colorSector; 
         
         if (reg.tipoGeometria === 'marker') {
             reg.capaLeaflet.setIcon(crearPinFiscal(colorSector));
@@ -1449,7 +1759,6 @@
         
         actualizarUIYMapa();
 
-        // Actualizar etiqueta en vivo
         const badge = document.getElementById(`badge-estatus-${idFisico}`);
         if (badge) {
             badge.innerText = nuevoEst;
@@ -1457,11 +1766,9 @@
         }
     }
 
-
     /* ==========================================================================
        FASE 4: FUNCIONES DE SISTEMA Y VÉRTICES DE EDICIÓN
        ========================================================================== */
-    
     function varCSS(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 
     function alternarModoLectura() {
@@ -1478,7 +1785,6 @@
             bPoly.style.opacity = "1"; bPoly.style.pointerEvents = "auto";
         }
 
-        // Habilitar/Deshabilitar Puntos Blancos Profesionales de Vértices en Polígonos
         for(let id in STORE) {
             STORE[id].registros.forEach(reg => {
                 if (reg.tipoGeometria === 'polygon' || reg.tipoGeometria === 'rectangle') {
@@ -1507,8 +1813,8 @@
     
     function toggleVisibilidadCapa(idSector, isVisible) { 
         STORE[idSector].visible = isVisible;
-        if(isVisible) capasSectores[idSector].addTo(mapa);
-        else mapa.removeLayer(capasSectores[idSector]);
+        if(isVisible) capaMaestraSectores.addLayer(capasSectores[idSector]);
+        else capaMaestraSectores.removeLayer(capasSectores[idSector]);
         actualizarUIYMapa(); 
     }
 
@@ -1519,17 +1825,84 @@
         const id = 'sec_' + Date.now();
         
         capasSectores[id] = new L.FeatureGroup();
-        STORE[id] = { nombreSector: nombre.toUpperCase(), visible: true, visibilidadPorEstatus: {}, coloresPorEstatus: {}, registros: [] };
+        STORE[id] = { 
+            nombreSector: nombre.toUpperCase(), 
+            visible: true, 
+            isMaster: false,
+            isExpanded: true,
+            visibilidadPorEstatus: {}, 
+            coloresPorEstatus: {}, 
+            registros: [] 
+        };
         capaActivaId = id;
+        actualizarUIYMapa();
+    }
+
+    function clonarSector(idSectorOriginal) {
+        if(modoLecturaGlobal) return alert("Desactive el Modo Lectura");
+        const sectorOriginal = STORE[idSectorOriginal];
+        const nombre = prompt("Nombre de la nueva capa clonada:", sectorOriginal.nombreSector + " (CLON)");
+        if(!nombre) return;
+        
+        const newId = 'sec_' + Date.now();
+        capasSectores[newId] = new L.FeatureGroup();
+        
+        STORE[newId] = {
+            nombreSector: nombre.toUpperCase(),
+            visible: true,
+            isMaster: false,
+            isExpanded: true,
+            visibilidadPorEstatus: JSON.parse(JSON.stringify(sectorOriginal.visibilidadPorEstatus)),
+            coloresPorEstatus: JSON.parse(JSON.stringify(sectorOriginal.coloresPorEstatus)),
+            colorPrincipal: sectorOriginal.colorPrincipal,
+            registros: []
+        };
+        
+        sectorOriginal.registros.forEach(reg => {
+            let capaNueva;
+            if(reg.tipoGeometria === 'marker') {
+               capaNueva = L.marker(reg.capaLeaflet.getLatLng(), {icon: reg.capaLeaflet.options.icon, draggable: !modoLecturaGlobal});
+            } else {
+               capaNueva = L.polygon(reg.capaLeaflet.getLatLngs(), reg.capaLeaflet.options);
+            }
+            
+            const newIdFisico = L.stamp(capaNueva);
+            STORE[newId].registros.push({
+                idFisico: newIdFisico,
+                tipoGeometria: reg.tipoGeometria,
+                capaLeaflet: capaNueva,
+                colorPersonalizado: reg.colorPersonalizado,
+                visibleIndividual: reg.visibleIndividual,
+                _modoPopup: 'lectura',
+                datosGenerales: JSON.parse(JSON.stringify(reg.datosGenerales)),
+                camposOcultos: [...reg.camposOcultos]
+            });
+            vincularEventosCapa(capaNueva, newId, newIdFisico);
+        });
+        
+        capaActivaId = newId;
+        actualizarUIYMapa();
+    }
+    
+    function limpiarSector(idSector) {
+        if(modoLecturaGlobal) return alert("Desactive el Modo Lectura");
+        if(STORE[idSector].isMaster) return alert("Capa Maestra Protegida. No se puede limpiar.");
+        if(!confirm(`⚠️ ATENCIÓN: ¿Seguro que desea vaciar la capa "${STORE[idSector].nombreSector}" eliminando todos sus registros internos?`)) return;
+        
+        if (capasSectores[idSector]) {
+            capasSectores[idSector].clearLayers();
+        }
+        STORE[idSector].registros = [];
         actualizarUIYMapa();
     }
 
     function eliminarSectorDefinitivo(idSector) {
         if(modoLecturaGlobal) return alert("Desactive el Modo Lectura");
+        if(STORE[idSector].isMaster) return alert("Capa Maestra Protegida. No se puede eliminar por seguridad.");
         if(!confirm(`⚠️ PELIGRO:\n¿Borrar el sector "${STORE[idSector].nombreSector}" y todos sus marcadores? Esta acción purga los datos de la memoria.`)) return;
         
         if (capasSectores[idSector]) {
-            mapa.removeLayer(capasSectores[idSector]);
+            capaMaestraSectores.removeLayer(capasSectores[idSector]);
             delete capasSectores[idSector];
         }
         delete STORE[idSector]; 
@@ -1537,19 +1910,48 @@
         actualizarUIYMapa();
     }
 
-    function borrarRegistroIndividual(idSector, idFisico) {
-        if(modoLecturaGlobal) return;
-        if(!confirm("¿Eliminar este contribuyente del mapa y del censo?")) return;
-        
-        const reg = STORE[idSector].registros.find(r => String(r.idFisico) === String(idFisico));
-        if(reg && capasSectores[idSector].hasLayer(reg.capaLeaflet)) {
-            capasSectores[idSector].removeLayer(reg.capaLeaflet);
+    function seleccionarTodoEnCat(checkMaster, idContenedor) {
+        const contenedor = document.getElementById(idContenedor);
+        if (!contenedor) return;
+        const checks = contenedor.querySelectorAll('.chk-registro');
+        checks.forEach(c => c.checked = checkMaster.checked);
+    }
+
+    function eliminarSeleccionadosEnCat(idSector, idContenedor, nombreCategoria) {
+        if(modoLecturaGlobal) return alert("Desactive el Modo Lectura para eliminar registros.");
+        const contenedor = document.getElementById(idContenedor);
+        if (!contenedor) return;
+        const seleccionados = contenedor.querySelectorAll('.chk-registro:checked');
+
+        if (seleccionados.length === 0) {
+            return alert("Por favor, seleccione al menos un registro en esta categoría marcando las casillas.");
         }
-        
-        STORE[idSector].registros = STORE[idSector].registros.filter(r => String(r.idFisico) !== String(idFisico));
-        
-        mapa.closePopup();
-        actualizarUIYMapa();
+
+        if (confirm(`¿Eliminar los ${seleccionados.length} registros seleccionados de la categoría "${nombreCategoria}"?`)) {
+            const idsABorrar = Array.from(seleccionados).map(c => c.getAttribute('data-id'));
+            
+            const capaSector = capasSectores[idSector];
+            if(capaSector) {
+                const registrosABorrar = STORE[idSector].registros.filter(r => idsABorrar.includes(String(r.idFisico)));
+                registrosABorrar.forEach(reg => {
+                    if (capaSector.hasLayer(reg.capaLeaflet)) {
+                        capaSector.removeLayer(reg.capaLeaflet);
+                    }
+                });
+            }
+
+            STORE[idSector].registros = STORE[idSector].registros.filter(r => !idsABorrar.includes(String(r.idFisico)));
+
+            if (mapa._popup) {
+                const sourceId = L.stamp(mapa._popup._source);
+                if (idsABorrar.includes(String(sourceId))) {
+                    mapa.closePopup();
+                }
+            }
+
+            actualizarUIYMapa(); 
+            alert(`${seleccionados.length} registros eliminados de la copia de trabajo. Guarde en la nube para persistir los cambios.`);
+        }
     }
 
     function enfocarSector(idSector) {
@@ -1559,27 +1961,28 @@
     }
 
     function calcularAuditoria(poligonoActivo) {
-        let count = { v: 0, x: 0, t: 0, total: 0 };
+        const porEstatus = {};
+        let total = 0;
         const box = poligonoActivo.getBounds();
-        for(let id in STORE) {
-            STORE[id].registros.forEach(r => {
-                if(r.tipoGeometria === 'marker' && box.contains(r.capaLeaflet.getLatLng())) {
-                    count.total++;
-                    const e = r.datosGenerales["Estatus"];
-                    if(e === "VIGENTE") count.v++;
-                    else if(e === "VENCIDA" || e === "SIN LICENCIA") count.x++;
-                    else if(e === "TEMPORAL") count.t++;
-                }
+        for (let id in STORE) {
+            STORE[id].registros.forEach((r) => {
+                if (r.tipoGeometria !== 'marker' || !r.capaLeaflet) return;
+                let ll;
+                try { ll = r.capaLeaflet.getLatLng(); } catch (e) { return; }
+                if (!ll || !box.contains(ll)) return;
+                total++;
+                const est = obtenerEstatusParaCuadro(r);
+                porEstatus[est] = (porEstatus[est] || 0) + 1;
             });
         }
-        return count;
+        const claves = Object.keys(porEstatus).sort((a, b) => a.localeCompare(b, 'es'));
+        const textoCompacto = claves.map((k) => `${porEstatus[k]} ${k}`).join(', ');
+        return { porEstatus, total, textoCompacto };
     }
 
-
     /* ==========================================================================
-       FASE 5: MÓDULO DE IMPORTACIÓN MASIVA (INTACTO)
+       IMPORTACIÓN MASIVA RAW / SHEETS (RESTAURADA EXACTAMENTE)
        ========================================================================== */
-       
     function abrirModalImportacion() { document.getElementById('modal-importar').style.display = 'flex'; }
     function cerrarModal(id) { document.getElementById(id).style.display = 'none'; document.getElementById('configuracion-columnas').style.display = 'none'; }
 
@@ -1651,7 +2054,7 @@
 
                     if(!isNaN(lat) && !isNaN(lng)) {
                         const estReal = homologarEstatus(diccionario[cEs]);
-                        const colHex = DICCIONARIO_ESTATUS[estReal].color;
+                        const colHex = DICCIONARIO_ESTATUS[estReal] ? DICCIONARIO_ESTATUS[estReal].color : "#6e7681";
                         
                         const mark = L.marker([lat, lng], { icon: crearPinFiscal(colHex), draggable: true });
                         capasSectores[idNuevo].addLayer(mark);
@@ -1676,7 +2079,14 @@
             } else fails++;
         });
 
-        STORE[idNuevo] = { nombreSector: "CENSO RAW " + new Date().toLocaleTimeString(), visible: true, visibilidadPorEstatus: {}, coloresPorEstatus: {}, registros: regArr };
+        STORE[idNuevo] = { 
+            nombreSector: "CENSO RAW " + new Date().toLocaleTimeString(), 
+            visible: true, 
+            isMaster: false,
+            visibilidadPorEstatus: {}, 
+            coloresPorEstatus: {}, 
+            registros: regArr 
+        };
         capaActivaId = idNuevo;
         cerrarModal('modal-importar');
         actualizarUIYMapa();
@@ -1686,16 +2096,14 @@
     }
 
     /* ==========================================================================
-       FASE 6: EXPORTACIÓN Y BACKUP DATA CON EXTRACCIÓN DE COORDENADAS
+       FASE 6: EXTRACCIÓN DE COORDENADAS PARA BACKUP
        ========================================================================== */
     function extraerDatosGeometria() {
-        // Clona el STORE profundamente, omitiendo referencias problemáticas a Leaflet
         const storeCopia = JSON.parse(JSON.stringify(STORE, (key, val) => {
             if (key === 'capaLeaflet' || key === 'grupoFisico') return undefined;
             return val;
         }));
 
-        // Inyectar coordenadas físicas antes de guardar
         for (let idSec in STORE) {
             STORE[idSec].registros.forEach((reg, i) => {
                 if (reg.tipoGeometria === 'marker') {
@@ -1710,32 +2118,45 @@
         return storeCopia;
     }
 
-    function exportarBaseDatos() {
-        const datosCompletos = extraerDatosGeometria();
-        const objetoMaestro = {
-            credentials: SYSTEM_AUTH,
-            store: datosCompletos
-        };
-        const payload = JSON.stringify(objetoMaestro, null, 2);
+    /* ==========================================================================
+       FASE 7: SEGURIDAD DE ACCESO Y CONFIGURACIONES
+       ========================================================================== */
+    function enviarCredenciales() {
+        const btnOlvidar = document.getElementById('btn-olvido');
+        const originalText = btnOlvidar.innerText;
+        btnOlvidar.innerText = "ENVIANDO CORREO...";
         
-        const blob = new Blob([payload], { type: "application/json" });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `CATASTRO_MUNICIPAL_BACKUP_${Date.now()}.json`;
-        a.click();
+        const parametros_plantilla = {
+            usuario: SYSTEM_AUTH.user,
+            clave: SYSTEM_AUTH.pass,
+            fecha: new Date().toLocaleString()
+        };
+
+        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, parametros_plantilla)
+        .then(function() {
+            document.getElementById('login-form-container').style.display = 'none';
+            document.getElementById('recovery-success-container').style.display = 'block';
+            btnOlvidar.innerText = originalText;
+        }, function(error) {
+            console.error("Error EmailJS:", error);
+            alert("Hubo un error al intentar enviar el correo. Verifique la configuración de EmailJS.");
+            btnOlvidar.innerText = originalText;
+        });
+    }
+    
+    function volverAlLogin() {
+        document.getElementById('recovery-success-container').style.display = 'none';
+        document.getElementById('login-form-container').style.display = 'block';
+        document.getElementById('login-user').value = '';
+        document.getElementById('login-pass').value = '';
     }
 
-    /* ==========================================================================
-       FASE 7: MOTOR GITHUB API Y CONFIGURACIÓN DE NUBE (SIN LOGIN BLOQUEANTE)
-       ========================================================================== */
-
-    // Módulo Sidebar para cambio de credenciales
     function cambiarCredenciales() {
         const nu = document.getElementById('ajuste-user').value.trim();
         const np = document.getElementById('ajuste-pass').value.trim();
         
         if(!nu || !np) return alert("Ingrese un usuario y una clave válidos.");
-        if(!confirm("⚠️ ¿Está seguro de cambiar las credenciales de acceso?\n\nDeberá usar estas nuevas credenciales la próxima vez que entre al sistema.")) return;
+        if(!confirm("⚠️ ¿Está seguro de cambiar las credenciales de la cuenta 'admin'?\nDeberá usar estas nuevas credenciales la próxima vez.")) return;
         
         SYSTEM_AUTH.user = nu;
         SYSTEM_AUTH.pass = np;
@@ -1743,64 +2164,159 @@
         document.getElementById('ajuste-user').value = "";
         document.getElementById('ajuste-pass').value = "";
         
-        alert("Credenciales actualizadas en memoria.\n\nGuardando en la Nube...");
+        alert("Credenciales actualizadas en memoria.\nGuardando en la Nube...");
         guardarEnServidor();
     }
     
-    // Módulo Sidebar Config Servidor
     function toggleConfigServidor() {
         const div = document.getElementById('ajustes-servidor');
         if (div.style.display === 'none') {
             div.style.display = 'block';
-            document.getElementById('ajuste-repo-token').value = localStorage.getItem('github_token') || '';
+            document.getElementById('ajuste-repo-token').value = getRealToken() || '';
+        } else {
+            div.style.display = 'none';
+        }
+    }
+
+    function toggleLicenciaPanel() {
+        const div = document.getElementById('ajustes-licencia');
+        if (div.style.display === 'none') {
+            div.style.display = 'block';
         } else {
             div.style.display = 'none';
         }
     }
     
-    function guardarConfiguracionServidor() {
-        const token = document.getElementById('ajuste-repo-token').value.trim();
-        if(!token) return alert("Ingrese el token de GitHub para la configuración del servidor.");
-        
-        localStorage.setItem('github_token', token);
-        localStorage.setItem('github_owner', GITHUB_OWNER);
-        alert("Configuración de Servidor guardada localmente.");
+    async function verificarYGuardarTokenMaestro() {
+        const rawToken = document.getElementById('ajuste-repo-token').value.trim();
+        if(!rawToken) return alert("Ingrese el token de GitHub (ghp_...).");
+
+        const btn = document.querySelector('#ajustes-servidor button');
+        const originalText = btn.innerText;
+        btn.innerText = "VERIFICANDO...";
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}`, {
+                headers: { 'Authorization': 'token ' + rawToken }
+            });
+
+            if (res.ok) {
+                const pikaToken = rawToken.split('').reverse().join('');
+                localStorage.setItem('master_token_revert', pikaToken);
+                alert("✅ Llave Maestra Encriptada y Guardada de forma segura.");
+                await cargarDatosNube(); 
+            } else {
+                throw new Error(`Error ${res.status}: El token es inválido o no tiene acceso al repositorio '${GITHUB_USER}/${GITHUB_REPO}'.`);
+            }
+        } catch(e) {
+            console.error(e);
+            alert(`❌ Error de verificación: ${e.message}`);
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    }
+    
+    async function cargarDatosNube() {
+        const GITHUB_TOKEN_DYNAMIC = getRealToken();
+        if (!GITHUB_TOKEN_DYNAMIC) {
+            actualizarUIYMapa();
+            return;
+        }
+
+        try {
+            const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${FILE_PATH}`, {
+                headers: { 'Authorization': 'token ' + GITHUB_TOKEN_DYNAMIC }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                fileSha = data.sha;
+                
+                const binStr = atob(data.content);
+                const utf8Bytes = new Uint8Array(binStr.length);
+                for (let i = 0; i < binStr.length; i++) {
+                    utf8Bytes[i] = binStr.charCodeAt(i);
+                }
+                const decodedContent = new TextDecoder('utf-8').decode(utf8Bytes);
+                
+                const jsonParsed = JSON.parse(decodedContent);
+                if (jsonParsed.credentials) {
+                    SYSTEM_AUTH = { ...SYSTEM_AUTH, ...jsonParsed.credentials };
+                    const csvInput = document.getElementById('input-csv-url');
+                    if(csvInput) csvInput.value = SYSTEM_AUTH.csvUrl || '';
+                }
+                reconstruirDesdeJSON(jsonParsed.store || {});
+            } else if (res.status === 404) {
+                actualizarUIYMapa();
+            } else {
+                throw new Error(`GitHub API error: ${res.status}`);
+            }
+        } catch (e) {
+            console.error("Failed to load cloud data:", e);
+            alert("No se pudieron cargar los datos de la nube. Revise su conexión o Token. Error: " + e.message);
+            actualizarUIYMapa();
+        }
+    }
+
+    function cerrarSesionSeguridad() {
+        location.reload();
     }
 
     async function guardarEnServidor() {
-        const token = localStorage.getItem('github_token');
-        const owner = localStorage.getItem('github_owner') || GITHUB_OWNER;
-        if(!token) return alert("No hay un Token configurado. Vaya a 'CONFIG. DE SERVIDOR' en el panel izquierdo para ingresarlo.");
+        const GITHUB_TOKEN_DYNAMIC = getRealToken();
+        if(!GITHUB_TOKEN_DYNAMIC) return alert("❌ Error de Seguridad: No se encontró una Llave Maestra ni Licencia activa válida para guardar en la Nube.");
 
         const btn = document.getElementById('btn-save-server');
         const btnOriginalText = btn.innerHTML;
         btn.innerHTML = "<i class='fas fa-spinner fa-spin'></i> GUARDANDO...";
+        btn.disabled = true;
 
         try {
-            // Empaquetado completo de geometrías + Credenciales dinámicas
+            let currentSha = null;
+            try {
+                const getRes = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${FILE_PATH}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'token ' + GITHUB_TOKEN_DYNAMIC,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                if (getRes.ok) {
+                    const getData = await getRes.json();
+                    currentSha = getData.sha;
+                }
+            } catch (err) {}
+
             const datosLimpios = extraerDatosGeometria();
             const objetoMaestro = {
                 credentials: SYSTEM_AUTH,
                 store: datosLimpios
             };
-            
             const jsonStr = JSON.stringify(objetoMaestro, null, 2);
-            // Codificación segura para JSON a Base64
-            const contentEncoded = btoa(unescape(encodeURIComponent(jsonStr)));
-
+            
+            const utf8Bytes = new TextEncoder().encode(jsonStr);
+            let binStr = "";
+            for (let i = 0; i < utf8Bytes.length; i++) {
+                binStr += String.fromCharCode(utf8Bytes[i]);
+            }
+            const contentEncoded = btoa(binStr);
+            
             const payload = {
                 message: "Backup Censo Fiscal Municipal " + new Date().toISOString(),
                 content: contentEncoded,
                 branch: "main"
             };
             
-            if(fileSha) payload.sha = fileSha; // Vital para actualizar y no duplicar
+            if (currentSha) payload.sha = currentSha;
 
-            const res = await fetch(`https://api.github.com/repos/${owner}/${REPO_NAME}/contents/${FILE_PATH}`, {
+            const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${FILE_PATH}`, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `token ${token}`,
-                    'Content-Type': 'application/json'
+                    'Authorization': 'token ' + GITHUB_TOKEN_DYNAMIC,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github.v3+json'
                 },
                 body: JSON.stringify(payload)
             });
@@ -1808,20 +2324,30 @@
             if(!res.ok) throw new Error(await res.text());
             
             const data = await res.json();
-            fileSha = data.content.sha; // Renovar SHA para futuros guardados
+            fileSha = data.content.sha;
             alert("✅ Datos de Hacienda guardados correctamente en la Nube.");
         } catch(e) {
             console.error(e);
             alert("❌ Error crítico al guardar en GitHub: " + e.message);
         } finally {
             btn.innerHTML = btnOriginalText;
+            btn.disabled = false;
         }
     }
+
+    const analizarCoordenadasProfundas = (coords) => {
+        if (Array.isArray(coords)) {
+            return coords.map(analizarCoordenadasProfundas);
+        } else if (coords && coords.lat !== undefined && coords.lng !== undefined) {
+            return { lat: parseFloat(coords.lat), lng: parseFloat(coords.lng) };
+        }
+        return coords;
+    };
     
     function reconstruirDesdeJSON(datosCargados) {
         STORE = {};
         for(let id in capasSectores) {
-            if(mapa.hasLayer(capasSectores[id])) mapa.removeLayer(capasSectores[id]);
+            if(capaMaestraSectores.hasLayer(capasSectores[id])) capaMaestraSectores.removeLayer(capasSectores[id]);
         }
         
         for(let idSector in datosCargados) {
@@ -1831,9 +2357,11 @@
             STORE[idSector] = {
                 nombreSector: sec.nombreSector,
                 visible: sec.visible !== false,
+                isMaster: sec.isMaster !== false, 
                 visibilidadPorEstatus: sec.visibilidadPorEstatus || {},
                 coloresPorEstatus: sec.coloresPorEstatus || {},
                 colorPrincipal: sec.colorPrincipal || '#00f2ff',
+                isExpanded: true,
                 registros: []
             };
 
@@ -1842,7 +2370,6 @@
                 const estActual = reg.datosGenerales["Estatus"] || "SIN CATEGORÍA";
                 const confEst = DICCIONARIO_ESTATUS[estActual] || DICCIONARIO_ESTATUS["SIN CATEGORÍA"];
                 
-                // Prioridad de color: Registro Individual -> Color Categoria (Sector) -> Estatus General
                 let colorBase = confEst.color;
                 if (STORE[idSector].coloresPorEstatus && STORE[idSector].coloresPorEstatus[estActual]) {
                     colorBase = STORE[idSector].coloresPorEstatus[estActual];
@@ -1850,13 +2377,16 @@
                 const colorAUsar = reg.colorPersonalizado || colorBase;
                 
                 if (reg.tipoGeometria === 'marker' && reg.coords) {
-                    capa = L.marker([reg.coords.lat, reg.coords.lng], { 
+                    const latParseada = parseFloat(reg.coords.lat);
+                    const lngParseada = parseFloat(reg.coords.lng);
+                    capa = L.marker([latParseada, lngParseada], { 
                         icon: crearPinFiscal(colorAUsar), 
                         draggable: !modoLecturaGlobal 
                     });
                     capa.on('dragend', () => actualizarUIYMapa());
                 } else if ((reg.tipoGeometria === 'polygon' || reg.tipoGeometria === 'rectangle') && reg.coords) {
-                    capa = L.polygon(reg.coords, { 
+                    const coordenadasPoligono = analizarCoordenadasProfundas(reg.coords);
+                    capa = L.polygon(coordenadasPoligono, { 
                         color: colorAUsar, 
                         fillColor: colorAUsar, 
                         fillOpacity: 0.2, 
@@ -1868,8 +2398,7 @@
                 }
 
                 if(capa) {
-                    const newIdFisico = L.stamp(capa); // Forzar nueva ID física válida para esta sesión
-                    
+                    const newIdFisico = L.stamp(capa);
                     const nuevoReg = {
                         idFisico: newIdFisico,
                         tipoGeometria: reg.tipoGeometria,
@@ -1880,15 +2409,19 @@
                         datosGenerales: reg.datosGenerales,
                         camposOcultos: reg.camposOcultos || []
                     };
-
                     STORE[idSector].registros.push(nuevoReg);
                     vincularEventosCapa(capa, idSector, newIdFisico);
                 }
             });
         }
-        
         actualizarUIYMapa();
     }
+
+    function initSecurity() {
+        document.getElementById('login-overlay').style.display = 'flex';
+    }
+    
+    initSecurity();
 
 </script>
 </body>
