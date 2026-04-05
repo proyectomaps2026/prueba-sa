@@ -38,7 +38,7 @@
         .status-dot { display: none !important; } /* Matar el punto */
         .status-header { display: flex !important; justify-content: space-between !important; align-items: center !important; gap: 15px !important; padding: 12px 16px !important; background: rgba(255, 255, 255, 0.03); cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.02); transition: background 0.2s;}
         .status-header:hover { background: rgba(255,255,255,0.05) !important; }
-        .status-header span:not(.status-badge) { color: #fff !important; background: none !important; padding: 0 !important; } /* Texto limpio */
+        .status-header span:not(.status-badge) { color: #fff !important; background: transparent !important; padding: 0 !important; } /* Texto blanco puro y limpio */
         .status-badge { background: rgba(255, 255, 255, 0.1) !important; color: #fff !important; padding: 2px 10px !important; border-radius: 20px !important; font-size: 11px !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; flex-shrink: 0; text-align: center; font-weight: 800; font-family: 'Inter', sans-serif;}
 
         input[type="color"].status-color-square {
@@ -131,6 +131,22 @@
         .sector-trash:hover { color: var(--color-vencida); text-shadow: 0 0 10px var(--color-vencida); }
 
         .status-group { border-top: 1px solid var(--border-color); background: rgba(255,255,255,0.01); }
+
+        .status-row-label {
+            flex: 1; 
+            min-width: 0; 
+            font-family: 'Inter', sans-serif; 
+            font-weight: 600; /* Texto limpio Inter 600 */
+            font-size: 11px; 
+            color: #ffffff !important; 
+            background: transparent !important;
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            white-space: nowrap; 
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
         .local-list { background: rgba(0,0,0,0.5); max-height: 250px; overflow-y: auto; }
         .local-row { padding: 8px 16px 8px 24px; font-size: 11px; color: #a5b0bfff; display: flex; align-items: center; justify-content: space-between; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.02); gap: 12px; }
         .local-row:hover { color: white; background: rgba(255,255,255,0.08); }
@@ -479,10 +495,15 @@
         return ls ? ls.trim() : '';
     }
 
+    // LIMPIEZA TOTAL DE EMOJIS Y CARACTERES RAROS
     function obtenerEstatusParaCuadro(reg) {
         const d = reg.datosGenerales || {};
         const v = d['Estatus'] || d['Categoría'] || d['Categoria'] || d['Estado'] || d['Semáforo'] || d['Categoria '];
-        if (v != null && String(v).trim() !== '') return String(v).trim();
+        if (v != null && String(v).trim() !== '') {
+            // Purga cualquier emoji de circulo, cuadrado, etc.
+            let textoLimpio = String(v).replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
+            return textoLimpio || 'SIN CATEGORÍA';
+        }
         return 'SIN CATEGORÍA';
     }
 
@@ -637,7 +658,7 @@
     }
 
     /* ==========================================================================
-       MAPEO DE CSV (PANEL DE SUPER ADMIN) - LÓGICA RAW COMPLETA
+       MAPEO DE CSV (PANEL DE SUPER ADMIN) - LÓGICA RAW COMPLETA + LIMPIEZA
        ========================================================================== */
     let csvDataTemp = null;
     let csvHeadersTemp = [];
@@ -655,15 +676,15 @@
             const response = await fetch(url);
             if(!response.ok) throw new Error("Error al descargar el archivo CSV. Verifique que la URL sea pública y permita CORS.");
             
-            const txt = await response.text();
+            // Forzar lectura UTF-8 Segura
+            const arrayBuffer = await response.arrayBuffer();
+            const txt = new TextDecoder('utf-8').decode(arrayBuffer);
             
-            // Lógica exacta de análisis RAW para no perder datos
             const rows = txt.split('\n').map(l => l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').trim()));
             
             if (rows.length > 1) {
                 csvHeadersTemp = rows[0];
                 
-                // Mapear todas las filas a objetos con TODAS las cabeceras
                 csvDataTemp = rows.slice(1).filter(r => r.length > 0 && r.some(c => c !== "")).map(rowArr => {
                     let obj = {};
                     csvHeadersTemp.forEach((head, i) => {
@@ -737,7 +758,7 @@
         STORE[idSector] = {
             nombreSector: nombreSector,
             visible: true,
-            isMaster: true, // Capa maestra protegida (Solo SuperAdmin puede borrarla/editarla libremente)
+            isMaster: true, 
             isExpanded: true,
             visibilidadPorEstatus: {},
             coloresPorEstatus: {},
@@ -767,7 +788,11 @@
                 }
 
                 const contribuyente = row[nameCol] || "SIN NOMBRE";
-                const estatus = statusCol ? (row[statusCol] || "SIN CATEGORÍA") : "SIN CATEGORÍA";
+                let estatusBruto = statusCol ? (row[statusCol] || "SIN CATEGORÍA") : "SIN CATEGORÍA";
+                // Interceptamos y destruimos emojis antes de guardar
+                let estatus = String(estatusBruto).replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
+                if(estatus === "") estatus = "SIN CATEGORÍA";
+
                 const fotoUrl = fotoCol ? (row[fotoCol] || "") : ""; 
 
                 if (isNaN(lat) || isNaN(lng)) {
@@ -1213,7 +1238,7 @@
 
     /* ==========================================================================
        FASE 2: EL MOTOR STATE-DRIVEN (INDEPENDENCIA ABSOLUTA DE CAPAS)
-       RESTAURADO CON LA INTERFAZ EXACTA SOLICITADA Y FUNCIONES DEL MASTER
+       RESTAURADO CON LA INTERFAZ EXACTA DE LA IMAGEN
        ========================================================================== */
     function actualizarUIYMapa() {
         const contenedor = document.getElementById('arbol-datos');
@@ -1302,7 +1327,6 @@
                 </div>
                 <div class="sector-body" id="sector-body-${idSector}" style="display: ${STORE[idSector].isExpanded ? 'block' : 'none'};">`;
 
-            // APLICACIÓN DE ESTÉTICA PLATINIUM EXACTA EN FILAS DE CATEGORÍAS
             for(let estatus in gruposPorEstatus) {
                 const confEst = DICCIONARIO_ESTATUS[estatus] || DICCIONARIO_ESTATUS["SIN CATEGORÍA"];
                 
@@ -1323,7 +1347,7 @@
                            style="cursor: pointer; width: 16px; text-align: center; color: ${estatusVisible ? 'white' : '#6e7681'}; flex-shrink: 0;"
                            onclick="event.stopPropagation(); toggleVisibilidadEstatus('${idSector}', '${estatus}', ${!estatusVisible})"></i>
                         
-                        <span style="flex: 1; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${estatus}">${estatus}</span>
+                        <span class="status-row-label" title="${estatus}">${estatus}</span>
                         
                         <span class="status-badge">${gruposPorEstatus[estatus].conteo}</span>
                         
@@ -2095,11 +2119,11 @@
             STORE[idSector] = {
                 nombreSector: sec.nombreSector,
                 visible: sec.visible !== false,
-                isMaster: sec.isMaster !== false, // Protect original layers by default
+                isMaster: sec.isMaster !== false, 
                 visibilidadPorEstatus: sec.visibilidadPorEstatus || {},
                 coloresPorEstatus: sec.coloresPorEstatus || {},
                 colorPrincipal: sec.colorPrincipal || '#00f2ff',
-                isExpanded: true, // Forzamos isExpanded=true para la carga inicial
+                isExpanded: true, 
                 registros: []
             };
 
